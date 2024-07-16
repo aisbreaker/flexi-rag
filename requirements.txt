@@ -1,0 +1,19 @@
+fastapi>=0.111.0
+pydantic>=2.7.0
+langgraph>=0.1.7
+langserve>=0.2.2
+# Add any other dependencies you have
+
+# from https://langchain-ai.github.io/langgraph/tutorials/rag/langgraph_adaptive_rag/
+langchain>=0.2.7
+langgraph>=0.1.7
+langchain_community
+langchain-openai>=0.1.15
+langchain-cohere>=0.1.9
+langchainhub>=0.1.20
+chromadb>=0.5.4
+tavily-python>=0.3.3
+tiktoken>=0.7.0
+
+# indirect requirement of langchain_community/document_loaders/web_base.py
+beautifulsoup4>=4.12.3
