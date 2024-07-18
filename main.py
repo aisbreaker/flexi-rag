@@ -3,15 +3,25 @@
 # standalone command execution
 
 # call build_index_py here
-from index_service.build_index import retriever
+#from index_service.build_index import vectorStoreRetriever
+#import index_service
+import index_service.build_index
+index_service.build_index.build_index_func()
+
 print("== retriever")
-print(retriever)
+print(index_service.build_index.vectorStoreRetriever)
 
 print ("-----")
 
-from answer_service.generate_2 import generation
+
+
 print("== generation")
-print(generation)
+# call generate_2_py here
+import answer_service.generate_2
+question = "What is agent memory"
+#question = "What is Java?"
+answer = answer_service.generate_2.generate_answer(question)
+print("answer:"+str(answer))
 
 # start server with API?
 if False:
