@@ -11,14 +11,16 @@ index_service.build_index.build_index_func()
 print("== retriever")
 print(index_service.build_index.vectorStoreRetriever)
 
-print ("-----")
+print ("----- print all data from sqlite3 db")
 
-
+index_service.build_index.print_all_docs_from_sqlite3_db()
+index_service.build_index.print_all_doc_parts_from_sqlite3_db()
 
 print("== generation")
 # call generate_2_py here
 import answer_service.generate_2
-question = "What is agent memory"
+question = "What is dance123?"
+#question = "What is agent memory"
 #question = "What is Java?"
 answer = answer_service.generate_2.generate_answer(question)
 print("answer:"+str(answer))

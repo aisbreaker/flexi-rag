@@ -1,3 +1,35 @@
+#
+# configure the Retrieval Augmented Generation system here
+# (in this file are the default settings/default values)
+#
+config:
+  crawling:
+    enabled: true
+    depth: 3
+    max_pages: 1000
+
+  embedding_and_indexing:
+    enabled: true
+    embedding_model: "bert-base-uncased"
+    index_path: "/data/aisbreaker-workspace/hapkecom-github/flexi-rag/index"
+
+  vector_search:
+    enabled: true
+    index_path: "/data/aisbreaker-workspace/hapkecom-github/flexi-rag/index"
+    similarity_threshold: 0.7
+
+  string_keyword_search:
+    enabled: true
+    index_path: "/data/aisbreaker-workspace/hapkecom-github/flexi-rag/index"
+
+  final_llm_processing:
+    enabled: true
+    model: "gpt2"
+    max_length: 100
+    temperature: 0.8
+
+
+# test entries without any semantics:
 test:
   value: 1
   valuestr: "test"

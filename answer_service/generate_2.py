@@ -5,6 +5,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
 
 import answer_service.retrieval_grader_1
+from utils.string_util import str_limit
 
 def generate_answer(question):
     # Prompt
@@ -20,11 +21,11 @@ def generate_answer(question):
 
     # Post-processing
     def format_docs(docs):
+        for doc in docs:
+            print(f"docs_context: {str_limit(doc.page_content)}")
         return "\n\n".join(doc.page_content for doc in docs)
 
     docs_context = format_docs(relevant_docs)
-    print("docs_context")
-    print(docs_context)
 
     # Chain
     rag_chain = prompt | llm | StrOutputParser()
