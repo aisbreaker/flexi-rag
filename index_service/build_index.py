@@ -54,7 +54,7 @@ DB_TABLE_document_part = """CREATE TABLE IF NOT EXISTS document_part (
                             )"""
 
 DB_TABLE_part = """CREATE TABLE IF NOT EXISTS part (
-                       sha256 TEXT NOT NULL PRIMARY KEY COMMENT "sha256 hash of the content of this part, also used as ID in the vectorstore",
+                       sha256 TEXT COMMENT "sha256 hash of the content of this part, also used as ID in the vectorstore" NOT NULL PRIMARY KEY,
                        content TEXT NOT NULL
                    )"""
 
@@ -242,9 +242,11 @@ def save_doc_parts_in_sqlite3_db(doc_parts_list: Iterator[Document]) -> Iterator
     # setup if necessary
     # a document part represents a part of a document after splitting, e.g., a page, a paragraph, a part of a page
     sqlCon.execute(DB_TABLE_document_part)
+    sqlCon.execute(DB_TABLE_part)
 
-    # insert document parts
-    num = 0
+    # insert (document) parts
+    parts_num = 0
+    document_parts_num = 0
     for doc_part in doc_parts_list:
         print(f"save_doc_parts_in_sqlite3_db: doc_part.metadata={str_limit(doc_part.metadata, 1024)} doc_part.page_content={str_limit(doc_part.page_content)}")
 
@@ -265,21 +267,35 @@ def save_doc_parts_in_sqlite3_db(doc_parts_list: Iterator[Document]) -> Iterator
             anker = doc_part.metadata['start_index']
         content = doc_part.page_content
 
-        # insert OR NOT (TODO: check if part already exists)
+        #
+        # insert "part" - OR NOT (TODO: check if part already exists)
+        #
         if False:
             # update row
             print("UPDATE documents SET url = ?, file_path = ?, content = ?, last_modified = ? WHERE id = ?", (doc.metadata.url, doc.page_content, doc.metadata))
         # else
         else:
             # insert row
-            print(f"insert document_part row: id={id}, document_id={document_id}")
-            """
-                                document_id TEXT NOT NULL,
-                                part_sha256 TEXT NOT NULL,
-                                anker TEXT COMMENT "position of the part in the document - e.g., page number, paragraph number, ..."
-            """
+            print(f"insert part row: id={id}, document_id={document_id}")
+            document_parts_num += 1
+            sqlCon.execute(
+                """INSERT INTO part (sha256, content)
+                                      VALUES (?, ?)""",
+                (part_sha256, part_content)
+            )
+            sqlCon.commit()
 
-            num += 1
+        #
+        # insert "document_part" - OR NOT (TODO: check if part already exists)
+        #
+        if False:
+            # update row
+            print("UPDATE document_part SET url = ?, file_path = ?, content = ?, last_modified = ? WHERE id = ?", (doc.metadata.url, doc.page_content, doc.metadata))
+        # else
+        else:
+            # insert row
+            print(f"insert document_part row: id={id}, document_id={document_id}")
+            document_parts_num += 1
             sqlCon.execute(
                 """INSERT INTO document_part (document_id, part_sha256, anker)
                                       VALUES (?, ?, ?)""",
@@ -287,11 +303,12 @@ def save_doc_parts_in_sqlite3_db(doc_parts_list: Iterator[Document]) -> Iterator
             )
             sqlCon.commit()
 
-        doc_part.metadata["id"] = id
+        doc_part.metadata["document_id"] = document_id
+        doc_part.metadata["part_sha256"] = part_sha256
         yield doc_part
     
     # iteration done
-    print(f"save_doc_parts_in_sqlite3_db: {num} row(s) inserted - DONE")
+    print(f"save_doc_parts_in_sqlite3_db: {document_parts_num} document_part row(s) and {parts_num} part row(s) inserted - DONE")
 
 def print_all_docs_from_sqlite3_db():
     sqlCon = get_sqlite3_db_connection()
