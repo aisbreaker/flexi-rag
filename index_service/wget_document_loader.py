@@ -20,6 +20,7 @@ from langchain_community.document_loaders.helpers import detect_file_encodings
 
 import logging
 
+from utils.hash_util import sha256sum
 from utils.string_util import str_limit
 
 logger = logging.getLogger(__name__)
@@ -30,21 +31,25 @@ class DownloadedFile:
         self,
         url: str,
         file_path: str, # Union[str, List[str], Path, List[Path]],
-        file_length: int,
-        content_type: str,
+        file_size: int,
+        content_type: str | None,
     ):
         self.url = url
         self.file_path = file_path
-        self.file_length = file_length
+        self.file_size = file_size
         self.content_type = content_type
 
     def __str__(self):
-        return f"DownloadedFile(url={self.url}, file_path={self.file_path}, file_length={self.file_length}, content_type={self.content_type})"
+        return f"DownloadedFile(url={self.url}, file_path={self.file_path}, file_size={self.file_size}, content_type={self.content_type})"
 
     def __repr__(self):
         return str(self)
 
-_MetadataExtractorType = Callable[[str, str], dict]
+# TODO: remove:
+#_MetadataExtractorType = Callable[[str, str], dict]
+    #??? Add generic extractor logic?
+    # extractor: Optional[Callable[[str], str]] = None,
+    # metadata_extractor: Optional[_MetadataExtractorType] = None,
 
 class WgetDocumentLoader(BaseLoader):
     """An example document loader that reads a file line by line."""
@@ -66,24 +71,20 @@ class WgetDocumentLoader(BaseLoader):
 
         # crawl with wget and iterate over the downloaded files
         print(f"Downloading files from url: {self.url}")
-        for downloadedFile in self.crawl_single_url_with_wget(self.url):
+        for downloadedFile in WgetDocumentLoader.crawl_single_url_with_wget(self.url):
             # extract text from downloaded file
             print(f"Downloaded file: {downloadedFile}")
 
-            # PDF? TODO
+            # extract metadata from downloaded file
+            metadata = self.getDownloadedFileMatadata(downloadedFile)
 
-
-            # HTML/XML/plain text?
-            print(f"Extracting text from downloaded file: {downloadedFile}")
-            result = self._text_html_xml_extractor(downloadedFile)
-            print(f"Extracted text: {result}")
-            # dodn't iterate over the result, because it would consume/empty the generator - just yield it
-            #for r in result:
-            #    print(f"Extracted text: Yielded: {r}")
-            print(f"Extracted text: Yielded now")
-            yield from result
+            # extract content (document(s)) from downloaded file
+            print(f"Extracting content (document(s)) from downloaded file: {downloadedFile}")
+            documents = list(self._generic_extractor(downloadedFile, metadata))
+            print(f"Extracted documents yielded now: {documents}")
+            yield from documents
  
-
+            # TODO: remove:
             """
             content = self.extractor(response.text)
             if content:
@@ -104,7 +105,43 @@ class WgetDocumentLoader(BaseLoader):
             """
 
     @staticmethod
-    def _pdf_extractor(downloaded: DownloadedFile) -> Iterator[Document]:
+    def getDownloadedFileMatadata(downloadedFile: DownloadedFile) -> Dict[str, Any]:
+        content_type = downloadedFile.content_type
+        if content_type is None:
+            urlLower = downloadedFile.url.lower()
+            if urlLower.endswith(".html") or urlLower.endswith(".htm"):
+                content_type = "text/html"
+            elif urlLower.endswith(".xml"):
+                content_type = "text/xml"
+            elif urlLower.endswith(".pdf"):
+                content_type = "application/pdf"
+            else:
+                content_type = "text/plain"
+        file_sha256 = sha256sum(downloadedFile.file_path)
+        print(f"getDownloadedFileMatadata() metadata: {downloadedFile} -> content_type: {content_type}, file_sha256: {str_limit(file_sha256, 7)}...")
+        return {
+            "source": downloadedFile.url,
+            "content_type": content_type,
+            "file_path": downloadedFile.file_path,
+            "last_modified": os.path.getmtime(downloadedFile.file_path),
+            "file_size": downloadedFile.file_size,
+            "file_sha256": file_sha256 
+        }
+
+    @staticmethod
+    def _generic_extractor(downloaded: DownloadedFile, metadata: Dict[str, Any]) -> Iterator[Document]:
+        if downloaded.content_type == "text/plain":
+            return WgetDocumentLoader._text_extractor(downloaded, metadata)
+        elif downloaded.content_type == "text/html" or downloaded.content_type == "text/xml":
+            return WgetDocumentLoader._html_xml_extractor(downloaded, metadata)
+        elif downloaded.content_type == "application/pdf":
+            return WgetDocumentLoader._pdf_extractor(downloaded, metadata)
+        else:
+            # default: (plain) text extractor
+            return WgetDocumentLoader._text_extractor(downloaded, metadata)
+
+    @staticmethod
+    def _pdf_extractor(downloaded: DownloadedFile, metadata: Dict[str, Any]) -> Iterator[Document]:
         """Extract text from a PDF file."""
         from langchain_community.document_loaders import PyPDFLoader
 
@@ -123,56 +160,46 @@ class WgetDocumentLoader(BaseLoader):
             pages = loader.load_and_split()
             pages.__iter__()
 
-    # extractor: Optional[Callable[[str], str]] = None,
-    # metadata_extractor: Optional[_MetadataExtractorType] = None,
-    @staticmethod
-    def _text_html_xml_extractor(downloaded: DownloadedFile) -> Iterator[Document]:
-        """Extract text from a plain text or HTML or XML file."""
 
-        from bs4 import BeautifulSoup
+
+    @staticmethod
+    def _text_extractor(downloaded: DownloadedFile, metadata: Dict[str, Any]) -> Iterator[Document]:
+        """Extract text from a plain text."""
+
+        # read file content
+        try:
+            print(f"Extracting A plain text from downloaded file: {downloaded}")
+            file_content = WgetDocumentLoader._load_text_file(downloaded.file_path).strip()
+            yield Document(
+                page_content = file_content,
+                metadata = metadata
+            )
+            return
+        except Exception as e:
+            print(f"ERROR: Extractor error for: {downloaded.content_type} and url: {downloaded.url}  - {e}")
+            # empty result:
+            yield from () # explanation: https://stackoverflow.com/questions/13243766/how-to-define-an-empty-generator-function/13243870#13243870
+            return
+
+    @staticmethod
+    def _html_xml_extractor(downloaded: DownloadedFile, metadata: Dict[str, Any]) -> Iterator[Document]:
+        """Extract text from a HTML or XML file."""
 
         # select HTML/XML parser for BeautifulSoup (https://www.crummy.com/software/BeautifulSoup/bs4/doc/#installing-a-parser)
-        default_bs_parser = "html.parser"
-        bs_parser = default_bs_parser
-        urlLower = downloaded.url.lower()
-        if bs_parser is None and downloaded.content_type == "text/xml":
+        if downloaded.content_type == "text/xml":
+            # XML
             bs_parser = "xml"
-        elif downloaded.content_type == "text/html":
-            bs_parser = "html.parser"
-        elif urlLower.endswith(".html") or urlLower.endswith(".htm"):
-            bs_parser = "html.parser"
-            downloaded.content_type == "text/html"
-        elif downloaded.url.endswith(".xml"):
-            bs_parser = "xml"
-            downloaded.content_type == "text/xml"
         else:
-            # fallback to plain text
-            bs_parser = None
-            downloaded.content_type == "text/plain"
+            # default: HTML
+            bs_parser = "html.parser"
 
         # read file content and pass to BeautifulSoup
         try:
             print(f"Extracting A text from downloaded file: {downloaded} with bs_parser: {bs_parser}")
+            from bs4 import BeautifulSoup
             file_content = WgetDocumentLoader._load_text_file(downloaded.file_path)
             if file_content:
                 print(f"Extracting B text from downloaded file: {downloaded} with file_content: '{str_limit(file_content)}'")
-                # default? Text! -> nothing to parse
-                if bs_parser is None:
-                    # use plain text
-                    print(f"Extracting plain text from downloaded file: {downloaded}")
-                    last_modified = os.path.getmtime(downloaded.file_path)
-                    yield Document(
-                        page_content=file_content,
-                        metadata={
-                            "source": downloaded.url,
-                            "content_type": downloaded.content_type,
-                            "file_path": downloaded.file_path,
-                            "last_modified": last_modified,
-                            "size": downloaded.file_length,
-                            "file_size": downloaded.file_length
-                        },
-                    )
-                    return
 
                 # parse with HTML or XML with BeautifulSoup
                 print(f"Extracting text from downloaded file with BeautifulSoup: {downloaded}")
@@ -183,21 +210,11 @@ class WgetDocumentLoader(BaseLoader):
                 print(f"Extracting text from downloaded file with BeautifulSoup done: {downloaded}")
                 try:
                     # extract text from bs4 object
-                    text = bs.get_text(**(bs_get_text_kwargs or {}))
+                    text = bs.get_text(**(bs_get_text_kwargs or {})).strip()
                     print(f"Extracted text from downloaded file with BeautifulSoup: {downloaded} -> '{str_limit(text)}'")
-                    last_modified = os.path.getmtime(downloaded.file_path)
-                    content_sha256 = sha256(file_content.encode('utf-8')).hexdigest()
                     yield Document(
-                        page_content=text,
-                        metadata={
-                            "source": downloaded.url,
-                            "content_type": downloaded.content_type,
-                            "content_sha256": content_sha256,
-                            "file_path": downloaded.file_path,
-                            "last_modified": last_modified,
-                            "size": downloaded.file_length,
-                            "file_size": downloaded.file_length
-                        },
+                        page_content = text,
+                        metadata = metadata
                     )
                     return
                 except Exception as e:
@@ -220,32 +237,25 @@ class WgetDocumentLoader(BaseLoader):
 
     @staticmethod
     def _load_text_file(file_path: str) -> Optional[str]:
-        encoding: Optional[str] = "utf-8"
-        autodetect_encoding: bool = True
+        default_encoding: Optional[str] = "utf-8"
 
         text: Optional[str] = None
-
         try:
             print(f"_load_text_file: {file_path}")
-            with open(file_path, "r", encoding=encoding) as f:
+            with open(file_path, "r", encoding=default_encoding) as f:
                 text = f.read()
         except UnicodeDecodeError as e:
             print(f"_load_text_file E1: {file_path}")
-            if autodetect_encoding:
-                detected_encodings = detect_file_encodings(file_path)
-                for encoding in detected_encodings:
-                    logger.debug(f"_load_text_file: Trying encoding: {encoding.encoding}")
-                    try:
-                        with open(file_path, encoding=encoding.encoding) as f:
-                            text = f.read()
-                        break
-                    except UnicodeDecodeError:
-                        continue
-            else:
-                raise RuntimeError(f"Error loading {file_path}") from e
-                logger.warning(f"_load_text_file: Error A loading {file_path}: {e}")
-                print(f"_load_text_file: ERROR: Error A loading {file_path}: {e}")
-                return None
+
+            detected_encodings = detect_file_encodings(file_path)
+            for default_encoding in detected_encodings:
+                logger.debug(f"_load_text_file: Trying encoding: {default_encoding.encoding}")
+                try:
+                    with open(file_path, encoding=default_encoding.encoding) as f:
+                        text = f.read()
+                    break
+                except UnicodeDecodeError:
+                    continue
         except Exception as e:
             raise RuntimeError(f"Error loading {file_path}") from e
             logger.warning(f"_load_text_file: Error B loading {file_path}: {e}")
@@ -264,7 +274,8 @@ class WgetDocumentLoader(BaseLoader):
                 "`parser` must be one of " + ", ".join(valid_parsers) + "."
             )
 
-    def crawl_single_url_with_wget(self, url) -> Iterator[DownloadedFile]:
+    @staticmethod
+    def crawl_single_url_with_wget(url) -> Iterator[DownloadedFile]:
         # crawl with wget with popen
         # and read name of downloaded files from stdin/stdout (with popen)
         import subprocess
@@ -297,8 +308,9 @@ class WgetDocumentLoader(BaseLoader):
                 else:
                     url = "file://" + file_path
                 
-                content_type = "text/html" # TODO: extract form wget output "Length: 2588 (2,5K) [text/html]"
-                file_length = os.path.getsize(file_path) # OR: # TODO: extract form wget output "Length: 2588 (2,5K) [text/html]"
-                print(f"WGET downloaded url: {url} -> file_path: {file_path} (content_type: {content_type}, file_length: {file_length})")
-                downloadedFile = DownloadedFile(url, file_path, file_length, content_type)
+                #content_type = "text/html" # TODO: extract form wget output "Length: 2588 (2,5K) [text/html]"
+                content_type = None
+                file_size = os.path.getsize(file_path) # OR: # TODO: extract form wget output "Length: 2588 (2,5K) [text/html]"
+                print(f"WGET downloaded url: {url} -> file_path: {file_path} (content_type: {content_type}, file_length: {file_size})")
+                downloadedFile = DownloadedFile(url, file_path, file_size, content_type)
                 yield downloadedFile

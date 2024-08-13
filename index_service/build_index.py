@@ -17,6 +17,7 @@ from typing import (
     Callable,
     Dict,
     Iterator,
+    List,
 )
 
 from utils.string_util import str_limit
@@ -25,7 +26,17 @@ sqlCon: Connection | None = None
 vectorStoreRetriever = None
 
 #
-# SQL DB data model
+# (Persitent) Data Model:
+#
+# The basic idea is to have documents (table 'document') and 
+# # connected document parts (table 'document_part') in the SQL DB.
+# These documents and their connected parts can change over time.
+#
+# And we have a parts (=text snippets + their sha256 hash + their embedding )
+# which are stored/cached almost forever to save embedding-calculation costs and time.
+# These parts are stored in the 'part' table in the SQL DB
+# and in the vectorstore DB.
+# Parts are identified and connected by their sha256 hash.
 #
 DB_TABLE_document = """CREATE TABLE IF NOT EXISTS document (
                             id TEXT NOT NULL PRIMARY KEY,
@@ -33,14 +44,20 @@ DB_TABLE_document = """CREATE TABLE IF NOT EXISTS document (
                             content_type TEXT NOT NULL,
                             file_path TEXT NOT NULL,
                             file_size INTEGER NOT NULL,
-                            content_sha256 TEXT NOT NULL,
+                            file_sha256 TEXT NOT NULL,
                             last_modified TEXT NOT NULL
                     )"""
 DB_TABLE_document_part = """CREATE TABLE IF NOT EXISTS document_part (
-                                id TEXT NOT NULL PRIMARY KEY,
                                 document_id TEXT NOT NULL,
-                                content TEXT
+                                part_sha256 TEXT NOT NULL,
+                                anker TEXT COMMENT "position of the part in the document - e.g., page number, paragraph number, ..."
                             )"""
+
+DB_TABLE_part = """CREATE TABLE IF NOT EXISTS part (
+                       sha256 TEXT NOT NULL PRIMARY KEY COMMENT "sha256 hash of the content of this part, also used as ID in the vectorstore",
+                       content TEXT NOT NULL
+                   )"""
+
 
 
 
@@ -99,8 +116,9 @@ def build_index_func():
 
     print(f"Flatten all loaded documents from ... {str_limit(docs, 1024)}")
     docs_list = [item for sublist in docs for item in sublist]
+        # TODO: flatten in a reactive way, i.e., load and process documents one by one
 
-    print("Save in SQL DB...")
+    print("Save documents in SQL DB ...")
     docs_list_stored = save_docs_in_sqlite3_db(docs_list)
 
     #print("Documents...")
@@ -119,6 +137,14 @@ def build_index_func():
     print("==================================== 1")
 
     print(f"Splitting documents... {docs_list_stored}")
+
+    # TODO: split (maybe slit doc by dock in a yield loop to remain reative)
+
+        # save doc with all chunks in SQL DB
+
+        # save all chunks in SQL DB
+
+        # save all chunks in vectorstore
 
     create_index_db_from_docs_list(docs_list_stored, embd)
     print("==================================== 2")
@@ -177,7 +203,7 @@ def save_docs_in_sqlite3_db(docs_list: Iterator[Document]) -> Iterator[Document]
         content_type = doc.metadata['content_type']
         file_path = doc.metadata['file_path']
         file_size = doc.metadata['file_size']
-        content_sha256 = doc.metadata['content_sha256']
+        file_sha256 = doc.metadata['file_sha256']
         last_modified = doc.metadata['last_modified']
         if False:
             # update row
@@ -188,9 +214,9 @@ def save_docs_in_sqlite3_db(docs_list: Iterator[Document]) -> Iterator[Document]
             print(f"insert document row: id={id}, source={source}")
             num += 1
             sqlCon.execute(
-                """INSERT INTO document (id, source, content_type, file_path, file_size, content_sha256, last_modified)
+                """INSERT INTO document (id, source, content_type, file_path, file_size, file_sha256, last_modified)
                                  VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (id, source, content_type, file_path, file_size, content_sha256, last_modified)
+                (id, source, content_type, file_path, file_size, file_sha256, last_modified)
             )
             sqlCon.commit()
 
@@ -221,10 +247,25 @@ def save_doc_parts_in_sqlite3_db(doc_parts_list: Iterator[Document]) -> Iterator
     num = 0
     for doc_part in doc_parts_list:
         print(f"save_doc_parts_in_sqlite3_db: doc_part.metadata={str_limit(doc_part.metadata, 1024)} doc_part.page_content={str_limit(doc_part.page_content)}")
-        # create uuid
-        id = "dpart-"+str(shortuuid.uuid()[:7])
+
+        # get document_id
         document_id = doc_part.metadata['document_id']
+
+        # create part id = sha256 hash
+        part_content = doc_part.page_content
+        part_sha256 = sha256(part_content.encode()).hexdigest()
+
+        # extract anker from metadata
+        anker = None
+        if "anker" in doc_part.metadata:
+            anker = doc_part.metadata['anker']
+        elif "page_number" in doc_part.metadata:
+            anker = f"page {doc_part.metadata['page_number']}"
+        elif "start_index" in doc_part.metadata:
+            anker = doc_part.metadata['start_index']
         content = doc_part.page_content
+
+        # insert OR NOT (TODO: check if part already exists)
         if False:
             # update row
             print("UPDATE documents SET url = ?, file_path = ?, content = ?, last_modified = ? WHERE id = ?", (doc.metadata.url, doc.page_content, doc.metadata))
@@ -232,11 +273,17 @@ def save_doc_parts_in_sqlite3_db(doc_parts_list: Iterator[Document]) -> Iterator
         else:
             # insert row
             print(f"insert document_part row: id={id}, document_id={document_id}")
+            """
+                                document_id TEXT NOT NULL,
+                                part_sha256 TEXT NOT NULL,
+                                anker TEXT COMMENT "position of the part in the document - e.g., page number, paragraph number, ..."
+            """
+
             num += 1
             sqlCon.execute(
-                """INSERT INTO document_part (id, document_id, content)
+                """INSERT INTO document_part (document_id, part_sha256, anker)
                                       VALUES (?, ?, ?)""",
-                (id, document_id, content)
+                (document_id, part_sha256, anker)
             )
             sqlCon.commit()
 
@@ -265,6 +312,47 @@ def print_all_doc_parts_from_sqlite3_db():
     for row in rows:
         print("  DB row: "+str_limit(row, 100))
     print("All Document Parts in SQL DB - DONE")
+
+def process_single_document_and_store_results_in_databaes(doc: Document):
+    # TODO
+
+    # split doc into parts
+    doc_splits = split_single_document_into_parts(doc)
+
+    # process sha256 hashes of doc parts
+    #TODO
+
+    # save doc in SQL DB
+    save_single_document_and_its_parts_in_sql_db(doc, doc_splits)
+
+    # save doc parts in vectorstore
+    save_parts_of_a_single_document_in_vectorstore(doc, doc_splits)
+
+def save_single_document_and_its_parts_in_sql_db(doc: Document, doc_parts: Iterator[Document]):
+    # save doc in SQL DB
+    doc_stored = save_docs_in_sqlite3_db([doc])
+    # save doc parts in SQL DB
+    doc_parts_stored = save_doc_parts_in_sqlite3_db(doc_parts)
+    return doc_stored, doc_parts_stored
+
+def save_parts_of_a_single_document_in_vectorstore(doc: Document, doc_parts: Iterator[Document]):
+    # TODO
+    print("save_parts_of_a_single_document_in_vectorstore: TODO")
+
+
+# TODO: use
+def split_single_document_into_parts(doc: Document) -> List[Document]:
+    # Split
+    text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+        chunk_size=50, chunk_overlap=10
+    )
+    doc_splits = text_splitter.split_documents([doc])
+    return doc_splits
+
+
+def split_documents_into_parts(docs: Iterator[Document]) -> Iterator[Document]:
+    for doc in docs:
+        yield from split_single_document_into_parts(doc)
 
 def create_index_db_from_docs_list(docs_list: Iterator[Document], embd: Embeddings):
     global vectorStoreRetriever
