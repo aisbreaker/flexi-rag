@@ -5,7 +5,8 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_openai import ChatOpenAI
 
-from index_service.build_index import get_vectorstore_retriever, vectorStoreRetriever
+from index_service.build_index import get_vectorstore, get_vectorstore_retriever, vectorStoreRetriever
+from utils.string_util import str_limit
 
 logger = logging.getLogger(__name__)
 
@@ -44,10 +45,13 @@ def get_relevant_documents(question):
     retrieval_grader = grade_prompt | structured_llm_grader
 
 
-    #docs = retriever.get_relevant_documents(question) # LangChainDeprecationWarning: The method `BaseRetriever.get_relevant_documents` was deprecated in langchain-core 0.1.46 and will be removed in 0.3.0. Use invoke instead.
+    #docs = vectorStoreRetriever.get_relevant_documents(question) # LangChainDeprecationWarning: The method `BaseRetriever.get_relevant_documents` was deprecated in langchain-core 0.1.46 and will be removed in 0.3.0. Use invoke instead.
     #docs = retriever.invoke({"question": question, "documents": docs})
     vectorStoreRetriever = get_vectorstore_retriever()
-    docs = vectorStoreRetriever.invoke(input=question)
+    #docs = vectorStoreRetriever.get_relevant_documents(question)
+    vs = get_vectorstore()
+    docs = vs.similarity_search(question, k=4)
+    #docs = vectorStoreRetriever.invoke(input=question)
     logger.debug("found "+str(len(docs))+" docs in vectorstore")
 
     # iterate over the documents
@@ -56,8 +60,8 @@ def get_relevant_documents(question):
         # print(doc.page_content)
         doc_txt = doc.page_content
         relevance_binary_score = retrieval_grader.invoke({"question": question, "document": doc_txt})
-        print(relevance_binary_score)
+        logger.debug(f"relevance_binary_score={relevance_binary_score} for doc={str_limit(doc_txt, 1000)}")
         if (relevance_binary_score.binary_score == "yes"):
             relevant_docs.append(doc)
-    print("found "+str(len(relevant_docs))+" relevant docs")
+    logger.info(f"found {str(len(relevant_docs))} relevant docs out of {str(len(docs))} candidates")
     return relevant_docs

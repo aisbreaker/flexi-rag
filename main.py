@@ -10,31 +10,40 @@ logging.getLogger('index_service').setLevel(logging.DEBUG)
 logging.getLogger('answer_service').setLevel(logging.DEBUG)
 #logging.getLogger('answer_service').setLevel(logging.WARNING)
 
+logger = logging.getLogger(__name__)
+
+
 # standalone command execution
 
 # call build_index_py here
 #from index_service.build_index import vectorStoreRetriever
 #import index_service
 import index_service.build_index
-index_service.build_index.build_index_func()
 
-print("== retriever")
-print(index_service.build_index.vectorStoreRetriever)
 
-print ("----- print all data from sqlite3 db")
+index_service.build_index.start_indexing()
+logger.info("fist indexing done XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
 
-index_service.build_index.print_all_docs_from_sqldb()
-index_service.build_index.print_all_parts_from_sqldb()
-index_service.build_index.print_all_doc_parts_from_sqldb()
+
 
 print("== generation")
 # call generate_2_py here
 import answer_service.generate_2
-question = "What is dance123?"
-#question = "What is agent memory"
-#question = "What is Java?"
-answer = answer_service.generate_2.generate_answer(question)
-print("answer:"+str(answer))
+question1 = "What is dance123?"
+question2 = "What is short-term memory?" # no working well: "What is agent memory?"
+#question2 = "What is Java?"
+
+logger.info("=====================")
+answer1 = answer_service.generate_2.generate_answer(question1)
+logger.info("question1: "+str(question1))
+logger.info("answer1:" +str(answer1))
+
+logger.info("=====================")
+answer2 = answer_service.generate_2.generate_answer(question2)
+logger.info("question2: "+str(question2))
+logger.info("answer2:" +str(answer2))
+
+
 
 # start server with API?
 if False:

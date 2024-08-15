@@ -1,16 +1,23 @@
 import hashlib
+import logging
+
+logger = logging.getLogger(__name__)
 
 # BUF_SIZE is totally arbitrary, change for your app!
 BUF_SIZE = 65536  # lets read stuff in 64kb chunks!
 
 #md5 = hashlib.md5()
 #sha1 = hashlib.sha1()
-sha256 = hashlib.sha256()
+
 
 def sha256sum(file_path) -> str:
     """Compute the SHA-256 hash of a
        file at the given path."""
+    
+    # start with a fresh buffer
+    sha256 = hashlib.sha256()
 
+    # read and process file content
     with open(file_path, 'rb') as f:
         while True:
             data = f.read(BUF_SIZE)
@@ -28,11 +35,20 @@ def sha256sum(file_path) -> str:
     print(f"sha256sum({file_path}): {hexdigest}")
     return hexdigest
 
-def sha256sum_str(data: str) -> str:
-    """Compute the SHA-256 hash of a
-       string."""
-    sha256.update(data.encode('utf-8'))
-    return sha256.hexdigest()
+
+def sha256sum_str(s: str) -> str:
+    """Compute the SHA-256 hash of a string."""
+
+    # start with a fresh buffer
+    sha256 = hashlib.sha256()
+
+    # process string
+    sha256.update(s.encode('utf-8'))
+    result = sha256.hexdigest()
+    
+    logger.debug(f"sha256sum_str('{s}') = {result}")
+    return result
+
 
 # for manual testing:
 #filename = "/tmp/wget/dance123.org/index.html"

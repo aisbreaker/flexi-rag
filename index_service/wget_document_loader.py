@@ -1,17 +1,13 @@
-from hashlib import sha256
 import os
-from typing import AsyncIterator, Iterator
+from typing import Iterator
 
 from typing import (
     Any,
-    Callable,
     Dict,
     Iterator,
     List,
     Optional,
-    Sequence,
     Set,
-    Union,
 )
 
 from langchain_core.document_loaders import BaseLoader
@@ -85,25 +81,6 @@ class WgetDocumentLoader(BaseLoader):
             logger.info(f"Extracted documents yielded now: {documents}")
             yield from documents
  
-            # TODO: remove:
-            """
-            content = self.extractor(response.text)
-            if content:
-                yield Document(
-                    page_content=content,
-                    metadata=self.metadata_extractor(response.text, url, response),
-                )
-
-
-            with open(downloadedFile.file_path, encoding="utf-8") as f:
-                line_number = 0
-                for line in f:
-                    yield Document(
-                        page_content=line,
-                        metadata={"line_number": line_number, "source": self.url},
-                    )
-                    line_number += 1 
-            """
 
     @staticmethod
     def getDownloadedFileMatadata(downloadedFile: DownloadedFile) -> Dict[str, Any]:
@@ -285,7 +262,7 @@ class WgetDocumentLoader(BaseLoader):
 
         directory_prefix = "/tmp/wget"
         proc = subprocess.Popen(
-            f"wget --directory-prefix {directory_prefix} --recursive -l1 --no-parent -A.html,.txt,.mp4,.pdf --limit-rate=1024k --wait=3 {url}",
+            f"wget --directory-prefix {directory_prefix} --recursive -l1 --no-parent -A.html,.txt,.mp4,.pdf --limit-rate=1024k --wait=10 {url}",
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=False,

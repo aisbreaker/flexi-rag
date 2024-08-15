@@ -1,12 +1,10 @@
 ### Build Index
 
-import datetime
-from hashlib import sha256
-import os
 from sqlite3 import Connection
+import threading
+import time
 from chromadb import GetResult
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import WebBaseLoader #, FileBaseLoader
 from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
 import shortuuid
@@ -18,7 +16,6 @@ import logging
 
 from typing import (
     Any,
-    Callable,
     Dict,
     Iterator,
     List,
@@ -28,12 +25,16 @@ from typing import (
 
 from utils.hash_util import sha256sum_str
 from utils.string_util import str_limit
+import queue
 
 logger = logging.getLogger(__name__)
 
 sqlCon: Connection | None = None
 vectorStore: Optional[Chroma] = None
 vectorStoreRetriever = None
+
+# in-memory queue of downloaded documents to process
+downloadedDocumentsToProcessQueue = queue.Queue()
 
 #
 # (Persitent) Data Model:
@@ -75,92 +76,138 @@ DB_TABLE_document_part = """CREATE TABLE IF NOT EXISTS document_part (
 
 
 
-# in-memory queue of strings (filenames)
-queue = []
+indexing_single_run_counter = 0
 
-"""
-def crawl_single_url_with_wget(url):
-    # crawl with wget with popen
-    # and read name of downloaded files from stdin/stdout (with popen)
-    import subprocess
-    import os
-    import io
+def get_indexing_single_run_counter():
+    global indexing_single_run_counter
+    return indexing_single_run_counter
 
-    proc = subprocess.Popen(
-        f"wget --directory-prefix /tmp/wget --recursive -l1 --no-parent -A.html,.txt,.mp4,.pdf --limit-rate=1024k --wait=3 {url}",
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=False,
-        shell=True
-    )
-    for line in io.TextIOWrapper(proc.stderr, encoding="utf-8"):  # or another encoding
-        # do something with line
-        # trim the line
-        logger.info("    WGET: " + line.strip())
-        # extract <filename> from line with "‘<filename>’ saved"
-        if "‘" in line and "’ saved" in line:
-            filename = line.split("‘")[1].split("’ saved")[0]
-            logger.info("WGET FILENAME: " + filename)
-            # add filename to an in-memory queue
-            queue.append(filename)
-"""
+# main function,
+# wait/block until for the first round to finish
+def start_indexing():
+    # start new thread with endless loop
+
+    # turn-on the worker thread
+    threading.Thread(target=indexing_endless_loop_worker, daemon=False).start()
+
+    # wait for the first round to finish
+    while get_indexing_single_run_counter() < 1:
+        time.sleep(1)
 
 
-    #for line in io.TextIOWrapper(proc.stdout, encoding="utf-8"):  # or another encoding
-    #    # do something with line
-    #    logger.info("WGET: " + line)
-    
+def indexing_endless_loop_worker():
+    min_time_between_indexing_single_run = 60  # in seconds
+    while True:
+        # preparation
+        starttime = time.time()
 
-# main function
-def build_index_func():
-    ### from langchain_cohere import CohereEmbeddings
+        # action
+        indexing_single_run()
 
-    # Set embeddings
-    embd = OpenAIEmbeddings()
+        # finish this round
+        now = time.time()
+        time_until_next_run = int(min_time_between_indexing_single_run - (now - starttime))
+        if time_until_next_run > 0:
+            logger.info(f"Sleeping for {time_until_next_run} seconds before starting next indexing round ...")
+            time.sleep(time_until_next_run)
+        else:
+            logger.info(f"Indexing round took longer than {min_time_between_indexing_single_run} seconds. Starting next indexing round immediately ...")
+
+
+
+
+def indexing_single_run():
+    global indexing_single_run_counter
+    logger.info(f"===== indexing_single_run() START (#{indexing_single_run_counter}) =====")
+
 
     # Docs to index
     urls = [
         "https://dance123.org/",
         #"https://file-examples.com/storage/fe44eeb9cb66ab8ce934f14/2017/04/file_example_MP4_480_1_5MG.mp4",
-    ]
-
-    # crawl/load all documents from all URLs
-    logger.info(f"Loading WgetDocumentLoader from ... {urls}")
-    docs = [WgetDocumentLoader(url).load() for url in urls]
-
-    logger.info(f"Flatten all loaded documents from ... {str_limit(docs, 1024)}")
-    docs_list = [item for sublist in docs for item in sublist]
-        # TODO: flatten in a reactive way, i.e., load and process documents one by one
-
-    logger.info("Split and save documents in databases ...")
-    for doc in docs_list:
-        process_single_document_and_store_results_in_databases(doc)
-
-    logger.info("==================================== DONE =================== 1")
-    print_all_docs_from_sqldb()
-
-
-
-""" def XXXbuild_index_func():
-    ### from langchain_cohere import CohereEmbeddings
-
-    # Set embeddings
-    embd = OpenAIEmbeddings()
-
-    # Docs to index
-    urls = [
         "https://lilianweng.github.io/posts/2023-06-23-agent/",
         "https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/",
         "https://lilianweng.github.io/posts/2023-10-25-adv-attack-llm/",
     ]
 
-    # Load
-    docs = [WebBaseLoader(url).load() for url in urls]
-    docs_list = [item for sublist in docs for item in sublist]
 
-    create_index_db_from_docs_list(docs_list, embd)
- """
+    """
+    Here we decouple the crawling/loading and the processing/saving of the downloaded documents
+    by using a queue and separated threads.
+    """
 
+    # start the worker thread to rawl/load all documents from all URLs
+    threading.Thread(target=download_all_documents_and_put_them_into_queue, args=(urls,), daemon=False).start()
+
+    # process all documents from the queue
+    process_all_documents_from_queue_worker()
+
+    # wait until all documents are completely processed
+    #downloadedDocumentsToProcessQueue.join()
+    # NOT NEEDED: everything will finish by itself when done
+
+    # single run done
+    logger.info(f"===== indexing_single_run() RESULTS (#{indexing_single_run_counter}) =====")
+    printall()
+    logger.info(f"===== indexing_single_run() END (#{indexing_single_run_counter}) =====")
+    indexing_single_run_counter += 1
+
+
+def download_all_documents_and_put_them_into_queue(urls: Iterator[str]):
+    logger.info(f"== download_all_documents_and_put_them_into_queue(): Loading WgetDocumentLoader from ... {urls}")
+    docs = lazy_load_all_urls(urls)
+    put_all_downloaded_documents_into_queue(docs)
+    logger.info(f"== download_all_documents_and_put_them_into_queue(): Lazy loading + putting into queue ... {str_limit(docs, 1024)}")
+    
+def put_all_downloaded_documents_into_queue(docs: Iterator[Document]):
+    logger.info("== put_all_downloaded_document_into_queue() - START")
+    counter = 0
+    for doc in docs:
+        downloadedDocumentsToProcessQueue.put(doc)
+        counter += 1
+    downloadedDocumentsToProcessQueue.put(None)  # end signal
+    logger.info("== put_all_downloaded_document_into_queue() - END after {counter} documents")
+
+
+def process_all_documents_from_queue_worker():
+    logger.info("== process_all_documents_in_queue_worker(): Split and save documents in databases - START")
+
+    while True:
+        # get next document from queue
+        logger.info(f"Next doc from queue: Take it now (queue len={downloadedDocumentsToProcessQueue.qsize()}) ... (blocking) ...")
+        doc = downloadedDocumentsToProcessQueue.get()
+        if doc is None:
+            # end signal
+            logger.info("Next doc from queue: No more documents in queue (and no more will come)")
+            downloadedDocumentsToProcessQueue.task_done()
+            break
+        else:
+            # normal processing
+            logger.info(f"Next doc from queue: Got it")
+            process_single_document_and_store_results_in_databases(doc)
+            downloadedDocumentsToProcessQueue.task_done()
+
+    logger.info("== process_all_documents_in_queue_worker(): Split and save documents in databases - END")
+
+
+def printall():
+    logger.info("== printall()")
+
+    global vectorStore
+    logger.info(f"vectorStore = {vectorStore}")
+
+    print_all_docs_from_sqldb()
+    print_all_parts_from_sqldb()
+    print_all_doc_parts_from_sqldb()
+
+
+#
+# processing multiple documents
+#
+def lazy_load_all_urls(urls: Iterator[str]) -> Iterator[Document]:
+    for url in urls:
+        docs_of_single_url = WgetDocumentLoader(url).lazy_load()
+        yield from docs_of_single_url
 
 
 
@@ -222,7 +269,7 @@ def save_single_document_and_its_parts_in_databases(doc: Document, doc_parts: It
     # un-lazy
     doc_parts_stored_done = list(doc_parts_stored)
 
-    return doc_stored, doc_parts_stored
+    return doc_stored, doc_parts_stored_done  #doc_parts_stored
 
 
 # iterate over the documents, save them in SQL DB, and add IDs
@@ -236,7 +283,7 @@ def save_docs_in_sqldb(docs_list: Iterator[Document]) -> Iterator[Document]:
     for doc in docs_list:
         logger.info(f"save_docs_in_sqldb: doc.metadata={str_limit(doc.metadata, 1024)} doc.page_content={str_limit(doc.page_content)}")
 
-        # create uuid
+        # create uuid and more
         id = "doc-"+str(shortuuid.uuid()[:7])
         #id =       str(shortuuid.uuid()[:7])
         logger.info(f"doc.metadata={doc.metadata}")
@@ -246,6 +293,23 @@ def save_docs_in_sqldb(docs_list: Iterator[Document]) -> Iterator[Document]:
         file_size = doc.metadata['file_size']
         file_sha256 = doc.metadata['file_sha256']
         last_modified = doc.metadata['last_modified']
+
+        # Is the source already in the DB? Then delete related entries first
+        # Attention: the order of deletion is important!
+        cur = sqlCon.cursor()
+        cur.execute("DELETE FROM document_part WHERE document_id IN (SELECT id FROM document WHERE source=?)", (source,))
+        rowcount = cur.rowcount
+        logger.info(f"Deleted {rowcount} row(s) for source={source} from 'document_part' table")
+        cur.close()
+        
+        cur = sqlCon.cursor()
+        cur.execute("DELETE FROM document WHERE source=?", (source,))
+        rowcount = cur.rowcount
+        sqlCon.commit()
+        logger.info(f"Deleted {rowcount} row(s) with source={source} from 'document' table")
+        cur.close()
+        sqlCon.commit()
+        
         if False:
             # update row
             logger.info("UPDATE documents SET url = ?, file_path = ?, content = ?, last_modified = ? WHERE id = ?", (doc.metadata.url, doc.page_content, doc.metadata))
@@ -354,8 +418,9 @@ def save_single_part_of_single_document_in_vectorstore_and_sqldb(doc_part: Docum
         sqlCon = get_sqldb_connection()
         cur = sqlCon.cursor()
         cur.execute("SELECT * FROM part WHERE sha256=?", (part_sha256,))
-        elem_in_sql_db = cur.fetchall()
-        is_part_in_sql_db = len(elem_in_sql_db) > 0
+        num_of_rows = len(cur.fetchall())
+        cur.close()
+        is_part_in_sql_db = (num_of_rows > 0)
 
         # save doc_part in vectorstore, if not already there
         # (use is_part_in_sql_db as workaround for is_part_in_vectorstore)
@@ -385,7 +450,7 @@ def save_single_part_of_single_document_in_vectorstore_and_sqldb(doc_part: Docum
         return part_sha256
 
     except Exception as e:
-        logger.Warning(f"save_single_part_of_single_document_in_vectorstore_and_sqldb(part_sha256={part_sha256}, part={str_limit(doc_part)}): {e}")
+        logger.warning(f"save_single_part_of_single_document_in_vectorstore_and_sqldb(part_sha256={part_sha256}, part={str_limit(doc_part)}): {e}")
         return None
     
     logger.info("END func")
@@ -402,6 +467,7 @@ def print_all_docs_from_sqldb():
     logger.info(f"All Documents in SQL DB ({len(rows)} rows):")
     for row in rows:
         logger.info("  DB row: "+str_limit(row, 200))
+    cur.close()
     logger.info("All Documents in SQL DB - DONE")
 
 def print_all_doc_parts_from_sqldb():
@@ -412,6 +478,7 @@ def print_all_doc_parts_from_sqldb():
     logger.info(f"All Document Parts in SQL DB ({len(rows)} rows):")
     for row in rows:
         logger.info("  DB row: "+str_limit(row, 100))
+    cur.close()
     logger.info("All Document Parts in SQL DB - DONE")
 
 def print_all_parts_from_sqldb():
@@ -422,6 +489,7 @@ def print_all_parts_from_sqldb():
     logger.info(f"All Parts in SQL DB ({len(rows)} rows):")
     for row in rows:
         logger.info("  DB row: "+str_limit(row, 100))
+    cur.close()
     logger.info("All Parts in SQL DB - DONE")
 
 
@@ -450,6 +518,7 @@ def get_vectorstore() -> Chroma:
 
     global vectorStore
     if vectorStore is None:
+        ### from langchain_cohere import CohereEmbeddings
         embd = OpenAIEmbeddings()
         vectorStore = Chroma(
             collection_name=vector_store_collection_name,
@@ -461,76 +530,3 @@ def get_vectorstore() -> Chroma:
 
 def get_vectorstore_retriever() -> VectorStoreRetriever:
     return get_vectorstore().as_retriever()
-
-
-""" def create_index_db_from_docs_list(docs_list: Iterator[Document], embd: Embeddings):
-    global vectorStoreRetriever
-    global vectorStore
-    
-    # Split
-    text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
-        chunk_size=50, chunk_overlap=10
-    )
-    doc_splits = text_splitter.split_documents(docs_list)
-    doc_splits2 = list(save_doc_parts_in_vectorstore_and_sqldb(doc_splits))
-
-    # Add to vectorstore
-    CHROMA_DB_PATH = "./chroma_db"
-    createNewDB = False #True
-    # check if we need to create a new DB/if the directory exists
-    if not os.path.exists(CHROMA_DB_PATH):
-        createNewDB = True
-    # create or load DB
-    if createNewDB:
-        vectorStore = Chroma.from_documents(
-            documents=doc_splits2,
-            collection_name="rag-chroma",
-            embedding=embd,
-            persist_directory=CHROMA_DB_PATH,
-        )
-    else:
-        vectorStore = Chroma(
-            collection_name="rag-chroma",
-            embedding_function=embd,
-            persist_directory=CHROMA_DB_PATH,
-        )
-
-    # the vector DB:
-    vectorStoreRetriever = vectorStore.as_retriever()
-
-    # logger.info summary of Chroma vectorstore
-    logger.info("{} documents in vectorstore".format(len(vectorStore.get()['documents'])))
- """
-
-"""
-def takeNextElementFromQueueAndIndex():
-    if len(queue) > 0:
-        filename = queue.pop(0)
-        logger.info("INDEXING: " + filename)
-        # load the file
-        FileBaseLoader(filename).load()
-        # split the file
-        # add to vectorstore
-
-        # Add to vectorstore
-        CHROMA_DB_PATH = "./chroma_db"
-        createNewDB = False #True
-        if createNewDB:
-            vectorstore = Chroma.from_documents(
-                documents=doc_splits,
-                collection_name="rag-chroma",
-                embedding=embd,
-                persist_directory=CHROMA_DB_PATH,
-            )
-        else:
-            vectorstore = Chroma(
-                collection_name="rag-chroma",
-                embedding_function=embd,
-                persist_directory=CHROMA_DB_PATH,
-            )
-
-
-
-    else:
-        logger.info("Queue is empty - nothing to index at the moment")
-"""
