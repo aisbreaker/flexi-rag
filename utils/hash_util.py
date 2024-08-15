@@ -28,6 +28,11 @@ def sha256sum(file_path) -> str:
     print(f"sha256sum({file_path}): {hexdigest}")
     return hexdigest
 
+def sha256sum_str(data: str) -> str:
+    """Compute the SHA-256 hash of a
+       string."""
+    sha256.update(data.encode('utf-8'))
+    return sha256.hexdigest()
 
 # for manual testing:
 #filename = "/tmp/wget/dance123.org/index.html"

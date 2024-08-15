@@ -1,4 +1,14 @@
+import logging
 
+logging.basicConfig(
+    format='%(asctime)s.%(msecs)03d %(levelname)-8s %(filename)s:%(funcName)s() - %(message)s',
+    level=logging.INFO,
+    datefmt='%Y-%m-%d %H:%M:%S')
+
+# Set different levels for different modules
+logging.getLogger('index_service').setLevel(logging.DEBUG)
+logging.getLogger('answer_service').setLevel(logging.DEBUG)
+#logging.getLogger('answer_service').setLevel(logging.WARNING)
 
 # standalone command execution
 
@@ -13,8 +23,9 @@ print(index_service.build_index.vectorStoreRetriever)
 
 print ("----- print all data from sqlite3 db")
 
-index_service.build_index.print_all_docs_from_sqlite3_db()
-index_service.build_index.print_all_doc_parts_from_sqlite3_db()
+index_service.build_index.print_all_docs_from_sqldb()
+index_service.build_index.print_all_parts_from_sqldb()
+index_service.build_index.print_all_doc_parts_from_sqldb()
 
 print("== generation")
 # call generate_2_py here

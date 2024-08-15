@@ -1,10 +1,13 @@
 ### Retrieval Grader
 
+import logging
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_openai import ChatOpenAI
 
-from index_service.build_index import vectorStoreRetriever
+from index_service.build_index import get_vectorstore_retriever, vectorStoreRetriever
+
+logger = logging.getLogger(__name__)
 
 def get_relevant_documents(question):
     """Get relevant documents for a given question."""
@@ -43,9 +46,9 @@ def get_relevant_documents(question):
 
     #docs = retriever.get_relevant_documents(question) # LangChainDeprecationWarning: The method `BaseRetriever.get_relevant_documents` was deprecated in langchain-core 0.1.46 and will be removed in 0.3.0. Use invoke instead.
     #docs = retriever.invoke({"question": question, "documents": docs})
-    global vectorStoreRetriever
+    vectorStoreRetriever = get_vectorstore_retriever()
     docs = vectorStoreRetriever.invoke(input=question)
-    print("found "+str(len(docs))+" docs in vectorstore")
+    logger.debug("found "+str(len(docs))+" docs in vectorstore")
 
     # iterate over the documents
     relevant_docs = []

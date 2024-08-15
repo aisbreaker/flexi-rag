@@ -70,18 +70,19 @@ class WgetDocumentLoader(BaseLoader):
         """
 
         # crawl with wget and iterate over the downloaded files
-        print(f"Downloading files from url: {self.url}")
+        logger.info(f"Downloading files from url: {self.url}")
         for downloadedFile in WgetDocumentLoader.crawl_single_url_with_wget(self.url):
             # extract text from downloaded file
-            print(f"Downloaded file: {downloadedFile}")
+            logger.info(f"Downloaded file: {downloadedFile}")
 
             # extract metadata from downloaded file
             metadata = self.getDownloadedFileMatadata(downloadedFile)
+            downloadedFile.content_type = metadata["content_type"]
 
             # extract content (document(s)) from downloaded file
-            print(f"Extracting content (document(s)) from downloaded file: {downloadedFile}")
+            logger.info(f"Extracting content (document(s)) from downloaded file: {downloadedFile}")
             documents = list(self._generic_extractor(downloadedFile, metadata))
-            print(f"Extracted documents yielded now: {documents}")
+            logger.info(f"Extracted documents yielded now: {documents}")
             yield from documents
  
             # TODO: remove:
@@ -118,7 +119,7 @@ class WgetDocumentLoader(BaseLoader):
             else:
                 content_type = "text/plain"
         file_sha256 = sha256sum(downloadedFile.file_path)
-        print(f"getDownloadedFileMatadata() metadata: {downloadedFile} -> content_type: {content_type}, file_sha256: {str_limit(file_sha256, 7)}...")
+        logger.info(f"getDownloadedFileMatadata() metadata: {downloadedFile} -> content_type: {content_type}, file_sha256: {str_limit(file_sha256, 7)}...")
         return {
             "source": downloadedFile.url,
             "content_type": content_type,
@@ -168,7 +169,7 @@ class WgetDocumentLoader(BaseLoader):
 
         # read file content
         try:
-            print(f"Extracting A plain text from downloaded file: {downloaded}")
+            logger.info(f"Extracting A plain text from downloaded file: {downloaded}")
             file_content = WgetDocumentLoader._load_text_file(downloaded.file_path).strip()
             yield Document(
                 page_content = file_content,
@@ -176,7 +177,7 @@ class WgetDocumentLoader(BaseLoader):
             )
             return
         except Exception as e:
-            print(f"ERROR: Extractor error for: {downloaded.content_type} and url: {downloaded.url}  - {e}")
+            logger.info(f"ERROR: Extractor error for: {downloaded.content_type} and url: {downloaded.url}  - {e}")
             # empty result:
             yield from () # explanation: https://stackoverflow.com/questions/13243766/how-to-define-an-empty-generator-function/13243870#13243870
             return
@@ -195,42 +196,42 @@ class WgetDocumentLoader(BaseLoader):
 
         # read file content and pass to BeautifulSoup
         try:
-            print(f"Extracting A text from downloaded file: {downloaded} with bs_parser: {bs_parser}")
+            logger.info(f"Extracting A text from downloaded file: {downloaded} with bs_parser: {bs_parser}")
             from bs4 import BeautifulSoup
             file_content = WgetDocumentLoader._load_text_file(downloaded.file_path)
             if file_content:
-                print(f"Extracting B text from downloaded file: {downloaded} with file_content: '{str_limit(file_content)}'")
+                logger.info(f"Extracting B text from downloaded file: {downloaded} with file_content: '{str_limit(file_content)}'")
 
                 # parse with HTML or XML with BeautifulSoup
-                print(f"Extracting text from downloaded file with BeautifulSoup: {downloaded}")
+                logger.info(f"Extracting text from downloaded file with BeautifulSoup: {downloaded}")
                 WgetDocumentLoader._check_bs_parser(bs_parser)
                 bs_kwargs: Optional[Dict[str, Any]] = None
                 bs_get_text_kwargs: Optional[Dict[str, Any]] = None
                 bs = BeautifulSoup(file_content, bs_parser, **(bs_kwargs or {}))
-                print(f"Extracting text from downloaded file with BeautifulSoup done: {downloaded}")
+                logger.info(f"Extracting text from downloaded file with BeautifulSoup done: {downloaded}")
                 try:
                     # extract text from bs4 object
                     text = bs.get_text(**(bs_get_text_kwargs or {})).strip()
-                    print(f"Extracted text from downloaded file with BeautifulSoup: {downloaded} -> '{str_limit(text)}'")
+                    logger.info(f"Extracted text from downloaded file with BeautifulSoup: {downloaded} -> '{str_limit(text)}'")
                     yield Document(
                         page_content = text,
                         metadata = metadata
                     )
                     return
                 except Exception as e:
-                    print(f"ERROR: Extractor error for content_type: {downloaded.content_type} and url: {downloaded.url} and bs_parser: {bs_parser} - {e}")
+                    logger.info(f"ERROR: Extractor error for content_type: {downloaded.content_type} and url: {downloaded.url} and bs_parser: {bs_parser} - {e}")
                     # empty result:
                     yield from ()
                 return
             
             else:
-                print(f"ERROR: Extractor error for content_type: {downloaded.content_type} and url: {downloaded.url} and bs_parser: {bs_parser} - no file content")
+                logger.info(f"ERROR: Extractor error for content_type: {downloaded.content_type} and url: {downloaded.url} and bs_parser: {bs_parser} - no file content")
                 # empty result:
                 yield from () # explanation: https://stackoverflow.com/questions/13243766/how-to-define-an-empty-generator-function/13243870#13243870
                 return
 
         except Exception as e:
-            print(f"ERROR: Extractor error for content_type: {downloaded.content_type} and url: {downloaded.url} and bs_parser: {bs_parser} - {e}")
+            logger.info(f"ERROR: Extractor error for content_type: {downloaded.content_type} and url: {downloaded.url} and bs_parser: {bs_parser} - {e}")
             # empty result:
             yield from () # explanation: https://stackoverflow.com/questions/13243766/how-to-define-an-empty-generator-function/13243870#13243870
             return
@@ -241,11 +242,11 @@ class WgetDocumentLoader(BaseLoader):
 
         text: Optional[str] = None
         try:
-            print(f"_load_text_file: {file_path}")
+            logger.info(f"_load_text_file: {file_path}")
             with open(file_path, "r", encoding=default_encoding) as f:
                 text = f.read()
         except UnicodeDecodeError as e:
-            print(f"_load_text_file E1: {file_path}")
+            logger.info(f"_load_text_file E1: {file_path}")
 
             detected_encodings = detect_file_encodings(file_path)
             for default_encoding in detected_encodings:
@@ -259,7 +260,7 @@ class WgetDocumentLoader(BaseLoader):
         except Exception as e:
             raise RuntimeError(f"Error loading {file_path}") from e
             logger.warning(f"_load_text_file: Error B loading {file_path}: {e}")
-            print(f"_load_text_file: ERROR: Error B loading {file_path}: {e}")
+            logger.info(f"_load_text_file: ERROR: Error B loading {file_path}: {e}")
             return None
         
         return text
@@ -293,7 +294,7 @@ class WgetDocumentLoader(BaseLoader):
         for line in io.TextIOWrapper(proc.stderr, encoding="utf-8"):  # or another encoding
             # do something with line
             # trim the line
-            print("    WGET: " + line.strip())
+            logger.info("    WGET: " + line.strip())
             # extract <file_path> from line with "‘<file_path>’ saved"
             if "‘" in line and "’ saved" in line:
                 # extract file_path from line
@@ -311,6 +312,6 @@ class WgetDocumentLoader(BaseLoader):
                 #content_type = "text/html" # TODO: extract form wget output "Length: 2588 (2,5K) [text/html]"
                 content_type = None
                 file_size = os.path.getsize(file_path) # OR: # TODO: extract form wget output "Length: 2588 (2,5K) [text/html]"
-                print(f"WGET downloaded url: {url} -> file_path: {file_path} (content_type: {content_type}, file_length: {file_size})")
+                logger.info(f"WGET downloaded url: {url} -> file_path: {file_path} (content_type: {content_type}, file_length: {file_size})")
                 downloadedFile = DownloadedFile(url, file_path, file_size, content_type)
                 yield downloadedFile
