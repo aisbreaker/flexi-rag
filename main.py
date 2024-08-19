@@ -64,21 +64,22 @@ if True:
 #
 # some test code
 #
+test_queries = False
 
+if test_queries:
+    print("== generation")
+    # call generate_2_py here
+    import answer_service.generate_2
+    question1 = "What is dance123?"
+    question2 = "What is short-term memory?" # no working well: "What is agent memory?"
+    #question2 = "What is Java?"
 
-print("== generation")
-# call generate_2_py here
-import answer_service.generate_2
-question1 = "What is dance123?"
-question2 = "What is short-term memory?" # no working well: "What is agent memory?"
-#question2 = "What is Java?"
+    logger.info("=====================")
+    answer1 = answer_service.generate_2.generate_answer(question1)
+    logger.info("question1: "+str(question1))
+    logger.info("answer1:" +str(answer1))
 
-logger.info("=====================")
-answer1 = answer_service.generate_2.generate_answer(question1)
-logger.info("question1: "+str(question1))
-logger.info("answer1:" +str(answer1))
-
-logger.info("=====================")
-answer2 = answer_service.generate_2.generate_answer(question2)
-logger.info("question2: "+str(question2))
-logger.info("answer2:" +str(answer2))
+    logger.info("=====================")
+    answer2 = answer_service.generate_2.generate_answer(question2)
+    logger.info("question2: "+str(question2))
+    logger.info("answer2:" +str(answer2))

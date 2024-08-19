@@ -10,7 +10,7 @@ from utils.string_util import str_limit
 
 logger = logging.getLogger(__name__)
 
-def generate_answer(question):
+def generate_answer(question, messages):
     # Prompt
     prompt = hub.pull("rlm/rag-prompt")
     logger.debug(f"prompt: {prompt}")
@@ -34,11 +34,15 @@ def generate_answer(question):
     logger.info(f"docs_context: {str_limit(docs_context)}")
 
     # Chain
-    rag_chain = prompt | llm | StrOutputParser()
+    rag_chain = prompt | llm  # | StrOutputParser()
 
     # Run
-    generation = rag_chain.invoke({"context": docs_context, "question": question})
-    print("generation done, length:"+str(len(generation)))
+    generation = rag_chain.invoke({
+        #"context": docs_context,
+        #"question": question, 
+        "messages": messages})
+    logger.info(f"generation: {generation}")
+    logger.info("generation done, length:"+str(len(generation)))
     #print(generation)
 
     return generation

@@ -2,8 +2,12 @@
 # create custom endpoints manually:
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
+
 from pydantic import BaseModel
-from workflow.workflow import create_workflow
+#from workflow.workflow import create_workflow
+from workflow.simple_workflow import create_workflow
+from langchain_core.chat_history import BaseChatMessageHistory
 
 router = APIRouter()
 workflow = create_workflow()
@@ -18,8 +22,49 @@ class EmbeddingsRequest(BaseModel):
 
 @router.post("/v1/chat/completions")
 async def chat_completions(request: ChatRequest):
+    """
+    Example request:
+    {
+        "model": "gpt-4o-mini",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "user",
+                "content": The Los Angeles Dodgers won the World Series in 2020. Where was it played?"
+            }
+        ]
+    }
+
+    Example response (Non-Streaming):
+    {
+        "choices": [
+            {
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {
+                "content": "The 2020 World Series was played in Texas at Globe Life Field in Arlington.",
+                "role": "assistant"
+            },
+            "logprobs": null
+            }
+        ],
+        "created": 1677664795,
+        "id": "chatcmpl-7QyqpwdfhqwajicIEznoc6Q47XAyW",
+        "model": "gpt-4o-mini",
+        "object": "chat.completion",
+        "usage": {
+            "completion_tokens": 17,
+            "prompt_tokens": 57,
+            "total_tokens": 74
+        }
+    }
+    """
+
     try:
-        response = workflow.run(request.messages)  # Adjust according to your workflow execution method
+        response = workflow.invoke({"messages": request.messages})  # Adjust according to your workflow execution method
         return {"choices": [{"text": response}]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

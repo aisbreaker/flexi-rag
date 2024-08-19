@@ -1,5 +1,7 @@
 from langchain.schema import Document
 
+from answer_service.hallucination_grader import hallucination_grader
+
 
 def retrieve(state):
     """

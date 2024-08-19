@@ -1,6 +1,31 @@
 FlexiRAG
 ========
 
+TMP
+---
+
+curl "http://localhost:8080/v1/chat/completions" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $OPENAI_API_KEY" \
+    -d '{
+        "model": "gpt-4o-mini",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant."
+            },
+            {
+                "role": "user",
+                "content": "Write a haiku that explains the concept of recursion."
+            }
+        ]
+    }'
+
+
+Steaming result from the final LangGraph node:
+* HOWTO: https://langchain-ai.github.io/langgraph/how-tos/streaming-from-final-node/
+
+
 Introduction
 ------------
 
