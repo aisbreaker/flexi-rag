@@ -125,9 +125,9 @@ def indexing_single_run():
     urls = [
         "https://dance123.org/",
         #"https://file-examples.com/storage/fe44eeb9cb66ab8ce934f14/2017/04/file_example_MP4_480_1_5MG.mp4",
-        "https://lilianweng.github.io/posts/2023-06-23-agent/",
-        "https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/",
-        "https://lilianweng.github.io/posts/2023-10-25-adv-attack-llm/",
+        #"https://lilianweng.github.io/posts/2023-06-23-agent/",
+        #"https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/",
+        #"https://lilianweng.github.io/posts/2023-10-25-adv-attack-llm/",
     ]
 
 
@@ -188,17 +188,6 @@ def process_all_documents_from_queue_worker():
             downloadedDocumentsToProcessQueue.task_done()
 
     logger.info("== process_all_documents_in_queue_worker(): Split and save documents in databases - END")
-
-
-def printall():
-    logger.info("== printall()")
-
-    global vectorStore
-    logger.info(f"vectorStore = {vectorStore}")
-
-    print_all_docs_from_sqldb()
-    print_all_parts_from_sqldb()
-    print_all_doc_parts_from_sqldb()
 
 
 #
@@ -459,38 +448,95 @@ def save_single_part_of_single_document_in_vectorstore_and_sqldb(doc_part: Docum
 # database debugging functions
 #
 
-def print_all_docs_from_sqldb():
+def get_all_docs_from_sqldb() -> List[Dict[str, Any]]:
+    # get all rows
     sqlCon = get_sqldb_connection()
     cur = sqlCon.cursor()
-    cur.execute("SELECT * FROM document")
+    cur.execute("SELECT id, source, content_type, file_path, file_size, file_sha256, last_modified FROM document")
     rows = cur.fetchall()
-    logger.info(f"All Documents in SQL DB ({len(rows)} rows):")
-    for row in rows:
-        logger.info("  DB row: "+str_limit(row, 200))
     cur.close()
+
+    # map rows to document dictionaries
+    document_dicts = [{
+        "id": row[0],
+        "source": row[1],
+        "content_type": row[2],
+        "file_path": row[3],
+        "file_size": row[4],
+        "file_sha256": row[5],
+        "last_modified": row[6],
+    } for row in rows]
+
+    return document_dicts
+
+def print_all_docs_from_sqldb():
+    docs = get_all_docs_from_sqldb()
+    docs_values = [list(doc.values()) for doc in docs]
+
+    for row in docs_values:
+        logger.info("  DB row: "+str_limit(row, 200))
     logger.info("All Documents in SQL DB - DONE")
 
-def print_all_doc_parts_from_sqldb():
+
+def get_all_doc_parts_from_sqldb() -> List[Dict[str, Any]]:
+    # get all rows
     sqlCon = get_sqldb_connection()
     cur = sqlCon.cursor()
-    cur.execute("SELECT * FROM document_part")
+    cur.execute("SELECT document_id, part_sha256, anker FROM document_part")
     rows = cur.fetchall()
-    logger.info(f"All Document Parts in SQL DB ({len(rows)} rows):")
-    for row in rows:
-        logger.info("  DB row: "+str_limit(row, 100))
     cur.close()
+
+    # map rows to document_part dictionaries
+    document_part_dicts = [{
+        "document_id": row[0],
+        "part_sha256": row[1],
+        "anker": row[2],
+    } for row in rows]
+
+    return document_part_dicts
+
+def print_all_doc_parts_from_sqldb():
+    doc_parts = get_all_doc_parts_from_sqldb()
+    doc_parts_values = [list(doc_part.values()) for doc_part in doc_parts]
+
+    for row in doc_parts_values:
+        logger.info("  DB row: "+str_limit(row, 200))
     logger.info("All Document Parts in SQL DB - DONE")
 
-def print_all_parts_from_sqldb():
+def get_all_parts_from_sqldb() -> List[Dict[str, Any]]:
+    # get all rows
     sqlCon = get_sqldb_connection()
     cur = sqlCon.cursor()
-    cur.execute("SELECT * FROM part")
+    cur.execute("SELECT sha256, content FROM part")
     rows = cur.fetchall()
-    logger.info(f"All Parts in SQL DB ({len(rows)} rows):")
-    for row in rows:
-        logger.info("  DB row: "+str_limit(row, 100))
     cur.close()
+
+    # map rows to part dictionaries
+    part_dicts = [{
+        "sha256": row[0],
+        "content": row[1],
+    } for row in rows]
+
+    return part_dicts
+
+def print_all_parts_from_sqldb():
+    parts = get_all_parts_from_sqldb()
+    parts_values = [list(part.values()) for part in parts]
+
+    for row in parts_values:
+        logger.info("  DB row: "+str_limit(row, 200))
     logger.info("All Parts in SQL DB - DONE")
+
+def printall():
+    logger.info("== printall()")
+
+    global vectorStore
+    logger.info(f"vectorStore = {vectorStore}")
+
+    print_all_docs_from_sqldb()
+    print_all_parts_from_sqldb()
+    print_all_doc_parts_from_sqldb()
+
 
 
 #
@@ -502,7 +548,10 @@ def get_sqldb_connection() -> Connection:
     SQL_DB_PATH = "./content.db"
     global sqlCon
     if sqlCon is None:
-        sqlCon = sqlite3.connect(SQL_DB_PATH)
+        sqlCon = sqlite3.connect(SQL_DB_PATH, check_same_thread=False)
+            # see also:
+            # - https://docs.python.org/3/library/sqlite3.html#sqlite3.threadsafety
+            # - https://discuss.python.org/t/is-sqlite3-threadsafety-the-same-thing-as-sqlite3-threadsafe-from-the-c-library/11463
 
         # setup tables if necessary
         sqlCon.execute(DB_TABLE_document)

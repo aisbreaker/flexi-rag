@@ -26,6 +26,46 @@ logger.info("fist indexing done XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
 
 
 
+
+# start server with API?
+if True:
+    from fastapi import FastAPI
+    from fastapi.staticfiles import StaticFiles
+    from api import endpoints
+    from api import admin_endpoints
+
+    app = FastAPI()
+
+    @app.get("/hello")
+    def get_hello():
+        return {"message": "Welcome to the AI RAG API"}
+
+    @app.get("/health")
+    # https://stackoverflow.com/questions/46949108/spec-for-http-health-checks/47119512#47119512
+    def get_health():
+        return {"status": "healthy"}
+
+    # /api/*
+    app.include_router(endpoints.router)
+
+    # /admin/*
+    app.include_router(admin_endpoints.router)
+
+    # /* for static files
+    app.mount("/", StaticFiles(directory="static",html = True), name="static")
+
+
+    # run the HTTP server
+    if __name__ == "__main__":
+        import uvicorn
+        uvicorn.run(app, host="0.0.0.0", port=8080)
+
+
+#
+# some test code
+#
+
+
 print("== generation")
 # call generate_2_py here
 import answer_service.generate_2
@@ -42,25 +82,3 @@ logger.info("=====================")
 answer2 = answer_service.generate_2.generate_answer(question2)
 logger.info("question2: "+str(question2))
 logger.info("answer2:" +str(answer2))
-
-
-
-# start server with API?
-if False:
-    from fastapi import FastAPI
-    from app.api import endpoints
-
-    app = FastAPI()
-
-    app.include_router(endpoints.router)
-
-    @app.get("/")
-    def read_root():
-        return {"message": "Welcome to the AI RAG API"}
-
-    # You can add more initializations here if necessary
-
-    if __name__ == "__main__":
-        import uvicorn
-        uvicorn.run(app, host="0.0.0.0", port=8080)
-
