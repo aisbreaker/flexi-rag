@@ -10,7 +10,7 @@ from utils.string_util import str_limit
 
 logger = logging.getLogger(__name__)
 
-def generate_answer(question, messages):
+def generate_answer(messages, documents):
     # Prompt
     prompt = hub.pull("rlm/rag-prompt")
     logger.debug(f"prompt: {prompt}")
@@ -21,6 +21,7 @@ def generate_answer(question, messages):
     llm = ChatOpenAI(model_name="gpt-4o", temperature=0) # cheaper
 
     # get context (docs)
+    question = messages[-1].content
     relevant_docs = answer_service.retrieval_grader_1.get_relevant_documents(question)
 
     # Post-processing
@@ -34,7 +35,8 @@ def generate_answer(question, messages):
     logger.info(f"docs_context: {str_limit(docs_context)}")
 
     # Chain
-    rag_chain = prompt | llm  # | StrOutputParser()
+    #rag_chain = prompt | llm  # | StrOutputParser()
+    rag_chain = llm
 
     # Run
     generation = rag_chain.invoke({

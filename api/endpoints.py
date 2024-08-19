@@ -64,8 +64,15 @@ async def chat_completions(request: ChatRequest):
     """
 
     try:
-        response = workflow.invoke({"messages": request.messages})  # Adjust according to your workflow execution method
-        return {"choices": [{"text": response}]}
+        result = workflow.invoke({"messages": request.messages})  # Adjust according to your workflow execution method
+        return {
+            "choices": [{
+                "message": {
+                    "content": result['generation'].content,
+                    "role": "assistant"
+                }
+            }]
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

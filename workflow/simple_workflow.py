@@ -1,6 +1,6 @@
 from langgraph.graph import END, StateGraph, START
 from workflow.graph_state import GraphState
-from workflow.simple_graph_nodes import generate
+from workflow.simple_graph_nodes import generate, generate9
 from workflow.simple_graph_nodes import generate2
 
 def create_workflow():
@@ -8,7 +8,7 @@ def create_workflow():
 
     # Define the nodes
     #workflow.add_node("generate", generate)  # generatae
-    workflow.add_node("generate", generate2)  # generatae
+    workflow.add_node("generate", generate9)  # generatae
 
     # Build graph
     workflow.add_edge(START, "generate")
