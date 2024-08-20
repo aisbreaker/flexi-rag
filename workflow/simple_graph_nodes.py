@@ -1,13 +1,17 @@
+from typing import Dict
 from langchain.schema import Document
 from answer_service.generate_2 import generate_answer
 
 from langchain import hub
 from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
+from langchain_core.runnables import RunnableConfig
+
 import logging
                            
 import answer_service.retrieval_grader_1
 from utils.string_util import str_limit
+from workflow.graph_state import GraphState
 
 logger = logging.getLogger(__name__)
 
@@ -33,19 +37,29 @@ def generate(state):
     return {"documents": documents, "question": question, "generation": generation}
 
 
-def generate9(state):
+async def generate9(
+        state: GraphState,
+        config: RunnableConfig
+    ) -> Dict:
+
     """
     Generate answer
 
     Args:
         state (dict): The current graph state
+        config (RunnableConfig): The current runnable configuration
+             Note on Python < 3.11
+             https://langchain-ai.github.io/langgraph/how-tos/streaming-tokens/
+                "When using python 3.8, 3.9, or 3.10, please ensure you manually pass the RunnableConfig through to the llm when invoking it like so: llm.ainvoke(..., config)."
 
     Returns:
         state (dict): New key added to state: generation, that contains LLM generation
     """
-    print("---GENERATE---")
+
+    logger.info("---GENERATE---")
     messages = state["messages"]
     documents = state["documents"]
+    streaming = True # state["streaming"]
 
     # Prompt
     prompt = hub.pull("rlm/rag-prompt")
@@ -54,7 +68,11 @@ def generate9(state):
 
     # LLM
     #llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0) # cheaper
-    llm = ChatOpenAI(model_name="gpt-4o", temperature=0) # cheaper
+    llm = ChatOpenAI(model_name="gpt-4o", temperature=0, streaming=streaming) # cheaper
+
+    # NOTE: this is where we're adding a tag that we'll be using later to filter the outputs of the final node for streaming-mode
+    llm = llm.with_config(tags=["final_node"])
+
 
     # get context (docs)
     question = messages[-1]["content"]
@@ -78,13 +96,23 @@ def generate9(state):
 
     # Run
     #generation = rag_chain.invoke({
-    generation = llm.invoke(messages)
-        #{
-        #"context": docs_context,
-        #"question": question, 
-        #"messages": messages})
-    logger.info(f"generation: {generation}")
+    if not streaming:
+        logger.info("llm invoke (not streaming)")
 
+        # Note on Python < 3.11
+        # https://langchain-ai.github.io/langgraph/how-tos/streaming-tokens/
+        #   "When using python 3.8, 3.9, or 3.10, please ensure you manually pass the RunnableConfig through to the llm when invoking it like so: llm.ainvoke(..., config)."
+        generation = llm.invoke(messages, config=config)
+            #{
+            #"context": docs_context,
+            #"question": question, 
+            #"messages": messages})
+        logger.info(f"llm done: generation: {generation}")
+    else:
+        logger.info("llm invoke (streaming/async)")
+        generation = await llm.ainvoke(messages, config=config) #, config)
+        # We return a list, because this will get added to the existing list
+        logger.info(f"llm await done: generation: {generation}")
 
 
     #return {"documents": documents, "messages": messages, "generation": generation}

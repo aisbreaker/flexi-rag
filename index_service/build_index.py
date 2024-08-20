@@ -96,7 +96,7 @@ def start_indexing():
 
 
 def indexing_endless_loop_worker():
-    min_time_between_indexing_single_run = 60  # in seconds
+    min_time_between_indexing_single_run = 60*60  # in seconds
     while True:
         # preparation
         starttime = time.time()

@@ -1,6 +1,7 @@
 # langserve doesn’t have a built-in function for OpenAI compatibility
 # create custom endpoints manually:
 
+import logging
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
@@ -8,6 +9,10 @@ from pydantic import BaseModel
 #from workflow.workflow import create_workflow
 from workflow.simple_workflow import create_workflow
 from langchain_core.chat_history import BaseChatMessageHistory
+
+
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 workflow = create_workflow()
@@ -64,16 +69,62 @@ async def chat_completions(request: ChatRequest):
     """
 
     try:
-        result = workflow.invoke({"messages": request.messages})  # Adjust according to your workflow execution method
-        return {
-            "choices": [{
-                "message": {
-                    "content": result['generation'].content,
-                    "role": "assistant"
+        stream = True
+        if not stream:
+            # non-streaming mode
+            async def generate():
+                result = workflow.invoke({"messages": request.messages})  # Adjust according to your workflow execution method
+                yield {
+                    "choices": [{
+                        "message": {
+                            "content": result['generation'].content,
+                            "role": "assistant"
+                        }
+                    }]
                 }
-            }]
-        }
+
+            return StreamingResponse(generate())
+        else:
+            # steaming mode
+            inputs = {"messages": request.messages}
+            logger.info("Chunks: ") #, end="")
+            """
+            async for event in workflow.astream_events(inputs, version="v2"):
+                kind = event["event"]
+                tags = event.get("tags", [])
+                logger.info("event="+kind+", tags="+str(tags)+", data="+str(event.get("data", {})))
+                if kind == "on_chat_model_stream" or "final_node" in tags:
+                    logger.info("event="+event)
+                    if kind == "on_chat_model_stream" and "final_node" in tags:
+                        data = event["data"]
+                        if data["chunk"].content:
+                            # Empty content in the context of OpenAI or Anthropic usually means
+                            # that the model is asking for a tool to be invoked.
+                            # So we only print non-empty content
+                            logger.info(data["chunk"].content) #, end="|")
+            """
+            """
+            async for chunk in workflow.astream(inputs, stream_mode="values"):
+                logger.info("chunk="+chunk)
+            """
+            async for event in workflow.astream_events(inputs, version="v2"):
+                kind = event["event"]
+                tags = event.get("tags", [])
+                #logger.info("event="+kind+", tags="+str(tags)+", data="+str(event.get("data", {})))
+                if kind == "on_chat_model_stream" or "final_node" in tags:
+                    #logger.info("event="+str(event))
+                    if kind == "on_chat_model_stream" and "final_node" in tags:
+                        data = event["data"]
+                        if data["chunk"].content:
+                            # Empty content in the context of OpenAI or Anthropic usually means
+                            # that the model is asking for a tool to be invoked.
+                            # So we only print non-empty content
+                            logger.info(data["chunk"].content) #, end="|")
+
+            logger.info("[END Chunks]")
+
     except Exception as e:
+        logging.error("Exception occurred", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/v1/embeddings")
