@@ -2,6 +2,7 @@
 # create custom endpoints manually:
 
 import logging
+from typing import Optional
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
@@ -19,6 +20,7 @@ workflow = create_workflow()
 
 class ChatRequest(BaseModel):
     model: str
+    stream: Optional[bool] = False
     messages: list
 
 class EmbeddingsRequest(BaseModel):
@@ -69,8 +71,9 @@ async def chat_completions(request: ChatRequest):
     """
 
     try:
-        stream = True
-        if not stream:
+        stream = request.stream
+        """
+        if not streaming:
             # non-streaming mode
             async def generate():
                 result = workflow.invoke({"messages": request.messages})  # Adjust according to your workflow execution method
@@ -85,43 +88,25 @@ async def chat_completions(request: ChatRequest):
 
             return StreamingResponse(generate())
         else:
-            # steaming mode
-            inputs = {"messages": request.messages}
-            logger.info("Chunks: ") #, end="")
-            """
-            async for event in workflow.astream_events(inputs, version="v2"):
-                kind = event["event"]
-                tags = event.get("tags", [])
-                logger.info("event="+kind+", tags="+str(tags)+", data="+str(event.get("data", {})))
-                if kind == "on_chat_model_stream" or "final_node" in tags:
-                    logger.info("event="+event)
-                    if kind == "on_chat_model_stream" and "final_node" in tags:
-                        data = event["data"]
-                        if data["chunk"].content:
-                            # Empty content in the context of OpenAI or Anthropic usually means
-                            # that the model is asking for a tool to be invoked.
-                            # So we only print non-empty content
-                            logger.info(data["chunk"].content) #, end="|")
-            """
-            """
-            async for chunk in workflow.astream(inputs, stream_mode="values"):
-                logger.info("chunk="+chunk)
-            """
-            async for event in workflow.astream_events(inputs, version="v2"):
-                kind = event["event"]
-                tags = event.get("tags", [])
-                #logger.info("event="+kind+", tags="+str(tags)+", data="+str(event.get("data", {})))
-                if kind == "on_chat_model_stream" or "final_node" in tags:
-                    #logger.info("event="+str(event))
-                    if kind == "on_chat_model_stream" and "final_node" in tags:
-                        data = event["data"]
-                        if data["chunk"].content:
-                            # Empty content in the context of OpenAI or Anthropic usually means
-                            # that the model is asking for a tool to be invoked.
-                            # So we only print non-empty content
-                            logger.info(data["chunk"].content) #, end="|")
+        """
+        # steaming mode
+        inputs = {"messages": request.messages, "stream_generate_on_last_node": stream}
+        logger.info("Chunks: ") #, end="")
+        async for event in workflow.astream_events(inputs, version="v2"):
+            kind = event["event"]
+            tags = event.get("tags", [])
+            #logger.info("event="+kind+", tags="+str(tags)+", data="+str(event.get("data", {})))
+            if kind == "on_chat_model_stream" or "final_node" in tags:
+                #logger.info("event="+str(event))
+                if kind == "on_chat_model_stream" and "final_node" in tags:
+                    data = event["data"]
+                    if data["chunk"].content:
+                        # Empty content in the context of OpenAI or Anthropic usually means
+                        # that the model is asking for a tool to be invoked.
+                        # So we only print non-empty content
+                        logger.info(data["chunk"].content) #, end="|")
 
-            logger.info("[END Chunks]")
+        logger.info("[END Chunks]")
 
     except Exception as e:
         logging.error("Exception occurred", exc_info=True)

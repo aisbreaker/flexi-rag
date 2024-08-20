@@ -16,6 +16,20 @@ from workflow.graph_state import GraphState
 logger = logging.getLogger(__name__)
 
 
+
+#
+# initial setup
+#
+
+#llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
+llm_with_streaming = ChatOpenAI(model_name="gpt-4o", temperature=0, streaming=True)
+llm_without_streaming = ChatOpenAI(model_name="gpt-4o", temperature=0, streaming=False)
+
+
+
+#
+# the actual LangGraph node(s)
+#
 def generate(state):
     """
     Generate answer
@@ -37,7 +51,7 @@ def generate(state):
     return {"documents": documents, "question": question, "generation": generation}
 
 
-async def generate9(
+async def generate_on_last_node(
         state: GraphState,
         config: RunnableConfig
     ) -> Dict:
@@ -59,7 +73,7 @@ async def generate9(
     logger.info("---GENERATE---")
     messages = state["messages"]
     documents = state["documents"]
-    streaming = True # state["streaming"]
+    streaming = state["stream_generate_on_last_node"]
 
     # Prompt
     prompt = hub.pull("rlm/rag-prompt")
@@ -67,8 +81,10 @@ async def generate9(
     # prompt: input_variables=['context', 'question'] metadata={'lc_hub_owner': 'rlm', 'lc_hub_repo': 'rag-prompt', 'lc_hub_commit_hash': '50442af133e61576e74536c6556cefe1fac147cad032f4377b60c436e6cdcb6e'} messages=[HumanMessagePromptTemplate(prompt=PromptTemplate(input_variables=['context', 'question'], template="You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.\nQuestion: {question} \nContext: {context} \nAnswer:"))]
 
     # LLM
-    #llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0) # cheaper
-    llm = ChatOpenAI(model_name="gpt-4o", temperature=0, streaming=streaming) # cheaper
+    if not streaming:
+        llm = llm_without_streaming
+    else:
+        llm = llm_with_streaming
 
     # NOTE: this is where we're adding a tag that we'll be using later to filter the outputs of the final node for streaming-mode
     llm = llm.with_config(tags=["final_node"])

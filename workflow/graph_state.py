@@ -20,3 +20,4 @@ class GraphState(TypedDict):
     messages: list[AnyMessage]
     documents: Optional[List[str]]
     generation: Optional[str]
+    stream_generate_on_last_node: Optional[bool] = False
