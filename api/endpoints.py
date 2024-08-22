@@ -1,12 +1,15 @@
 # langserve doesn’t have a built-in function for OpenAI compatibility
 # create custom endpoints manually:
 
+import json
 import logging
+import time
 from typing import Optional
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
 from pydantic import BaseModel
+import shortuuid
 #from workflow.workflow import create_workflow
 from workflow.simple_workflow import create_workflow
 from langchain_core.chat_history import BaseChatMessageHistory
@@ -71,42 +74,91 @@ async def chat_completions(request: ChatRequest):
     """
 
     try:
+        # some "settings" in the response
+        id = "chatcmpl-flexirag-"+str(shortuuid.uuid()[:7])
+        model = "flexirag-v1"
+
+        # generate response
         stream = request.stream
-        """
-        if not streaming:
+        if not stream:
             # non-streaming mode
             async def generate():
-                result = workflow.invoke({"messages": request.messages})  # Adjust according to your workflow execution method
-                yield {
+                workflow_result = await workflow.ainvoke({"messages": request.messages})  # Adjust according to your workflow execution method
+                response_data = {
+                    "id": id,
+                    "object": "chat.completion.chunk",
+                    "model": model,
                     "choices": [{
                         "message": {
-                            "content": result['generation'].content,
+                            "content": workflow_result['generation'].content,
                             "role": "assistant"
                         }
-                    }]
+                    }],
+                    "created": int(time.time()),
                 }
+                return response_data
+            return await generate()
 
-            return StreamingResponse(generate())
         else:
-        """
-        # steaming mode
-        inputs = {"messages": request.messages, "stream_generate_on_last_node": stream}
-        logger.info("Chunks: ") #, end="")
-        async for event in workflow.astream_events(inputs, version="v2"):
-            kind = event["event"]
-            tags = event.get("tags", [])
-            #logger.info("event="+kind+", tags="+str(tags)+", data="+str(event.get("data", {})))
-            if kind == "on_chat_model_stream" or "final_node" in tags:
-                #logger.info("event="+str(event))
-                if kind == "on_chat_model_stream" and "final_node" in tags:
-                    data = event["data"]
-                    if data["chunk"].content:
-                        # Empty content in the context of OpenAI or Anthropic usually means
-                        # that the model is asking for a tool to be invoked.
-                        # So we only print non-empty content
-                        logger.info(data["chunk"].content) #, end="|")
+            # steaming mode
+            inputs = {"messages": request.messages, "stream_generate_on_last_node": stream}
+            async def generate():
+                async for workflow_event in workflow.astream_events(inputs, version="v2"):
+                    kind = workflow_event["event"]
+                    tags = workflow_event.get("tags", [])
+                    if kind == "on_chat_model_stream" and "final_node" in tags:
+                        # fetch "content"
+                        data = workflow_event["data"]
+                        if data is None:
+                            continue
+                        chunk = data["chunk"]
+                        if chunk is None:
+                            continue
+                        content = chunk.content
+                        if content is None:
+                            continue
+                        # process content: i.e. send to REST client
+                        logger.info(f"Final node content (Chunk): {content}")
+                        # {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1694268190,"model":"gpt-4o-mini", "system_fingerprint": "fp_44709d6fcb", "choices":[{"index":0,"delta":{"content":"Hello"},"logprobs":null,"finish_reason":null}]}
+                        response_data = {
+                            "id": id,
+                            "object": "chat.completion.chunk",
+                            "model": model,
+                            "choices": [
+                                {
+                                    "index": 0,
+                                    "delta": {
+                                        "content": content,
+                                        "role": "assistant",
+                                    },
+                                    "finish_reason": None,
+                                },
+                            ],
+                            "created": int(time.time()),
+                        }
+                        # yield as SSE
+                        str = f"data: {json.dumps(response_data)}\n\n"
+                        logger.info(f"Yielding: {str}")
+                        yield str
 
-        logger.info("[END Chunks]")
+                # generation finished
+                stop_response_data = {
+                    "id": id,
+                    "object": "chat.completion.chunk",
+                    "created": int(time.time()),
+                    "choices": [
+                        {
+                            "index": 0,
+                            "delta": {},
+                            "finish_reason": "stop",
+                        }
+                    ]
+                }
+                yield f"data: {json.dumps(stop_response_data)}\n\n"
+                # (response) stream finished
+                yield f"data: [DONE]\n\n"
+
+            return StreamingResponse(generate(), media_type="text/event-stream")
 
     except Exception as e:
         logging.error("Exception occurred", exc_info=True)
