@@ -43,9 +43,13 @@ header { color:#eee; padding:12px; font-size:20px; height:45px; font-family:"Ope
 </style>
 
 <header>
-  <div id=heading style="float:left">Vanilla ChatGPT<br>
+  <div id=heading style="float:left">Simple Chat - for Flexi-RAG<br>
     <span id=message style="color:yellow;font-size:10px">
-        <a href="https://github.com/casualwriter/vanilla-chatgpt" target=_NEW>github</a> @20230412
+        Back to: <a href="/">Home</a>
+    </span>
+    <span>&nbsp;</span> 
+    <span id=message style="color:yellow;font-size:10px">
+        This chat client based on: <a href="https://github.com/casualwriter/vanilla-chatgpt" target=_NEW>vanilla-chatgpt@20230412@github</a>
     </span>
   </div>
   <div id=menu style="float:right;">
@@ -233,7 +237,7 @@ const chat = (id) => window.document.getElementById(id);
 
 // Set the API endpoint URL
 chat.endPoint  = "/v1/chat/completions";
-chat.model = "gpt-3.5-turbo"
+chat.model = "flexi-rag-model"
 chat.body  = { model: chat.model, temperature: 0.8 }
 chat.history = []
 
