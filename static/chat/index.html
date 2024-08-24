@@ -1,31 +1,46 @@
 ﻿<!DOCTYPE html>
+<html class="dark">
 <head>
   <title>Chat</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <link rel="stylesheet" type="text/css" href="/aisbreaker.org-assets/style.2K_849Vg.css">
 </head>
 
 <style>
 body  { font-family: Roboto,Lato,Arial; line-height:1.5; font-size:16px; margin:0; padding:0; overflow:hidden; }
-header { background: linear-gradient(to bottom right, #06c, #fc0); }
-header { color:#eee; padding:12px; font-size:20px; height:45px; font-family:"Open Sans" }
+XXXheader { background: linear-gradient(to bottom right, #06c, #fc0); }
+
+header { color: transparent; }
+header { background: -webkit-linear-gradient( 120deg, #bd34fe 30%, #41d1ff ); }
+header { background: linear-gradient( 120deg, #bd34fe 30%, #41d1ff ); }
+XXXheader { background: linear-gradient( -45deg, #bd34fe 50%, #47caff 50% ); }
+XXXheader { color:#eee; padding:12px; font-size:20px; height:45px; font-family:"Open Sans" }
+header { color:#222; padding:12px; font-size:20px; height:45px; font-family:"Open Sans" }
 #left  { float:left;  width:calc(60vw - 30px); height:calc(100vh - 100px); }
 #right { float:right; width:40%; height:calc(100vh - 100px); } 
 #left, #prompt, #list { border:1px solid grey; padding:6px; overflow:auto }
-#list li:hover  { background:#ddd }
+#XXXlist li:hover  { background:#ddd }
+#list li:hover  { background:#333 }
 #menu button    { font-family:Lato,arial; border-radius:3px; border:none; padding:3px 6px}
-#right textarea { display:block; width:96%; margin:3px auto; background:#eee}
-.prompt { color:#322; background:#ccc; padding:6px; }
+#XXXright XXXtextarea { display:block; width:96%; margin:3px auto; background:#eee}
+#right textarea { display:block; width:96%; margin:3px auto; background:#222}
+.XXXprompt { color:#322; background:#ccc; padding:6px; }
+.prompt { color:#ccc; background:#322; padding:6px; }
 
 .markdown code { background:#f0f0f0; color:navy; border-radius:6px; padding:2px; } 
-.markdown pre  { background:#f0f0f0; margin:16px; border:1px solid #ddd; padding:8px; border-radius: 6px;  } 
+.XXXmarkdown XXXpre  { background:#f0f0f0; margin:16px; border:1px solid #ddd; padding:8px; border-radius: 6px;  } 
+.markdown pre  { background:#101010; margin:16px; border:1px solid #222; padding:8px; border-radius: 6px;  } 
 .markdown pre:hover button { display:block; }
 .markdown pre button { display:none; float:right; margin:4px }
-.markdown blockquote { background:#f0f0f0; border-left:6px solid grey; padding:8px }
+.XXXmarkdown XXXblockquote { background:#f0f0f0; border-left:6px solid grey; padding:8px }
+.markdown blockquote { background:#101010; border-left:6px solid grey; padding:8px }
 .markdown table { margin:12px; border-collapse: collapse; }
-.markdown th    { border:1px solid grey; background:lightgrey; padding:6px; } 
+.XXXmarkdown XXXth    { border:1px solid grey; background:lightgrey; padding:6px; } 
+.markdown th    { border:1px solid grey; background:darkgray; padding:6px; } 
 .markdown td    { border:1px solid grey;  padding:6px; }
-.markdown tr:nth-child(even) {  background:#f0f0f0;  }
+.XXXmarkdown XXXtr:nth-child(even) {  background:#f0f0f0;  }
+.markdown tr:nth-child(even) {  background:#101010;  }
 
 @media print{
   #menu, #right { display:none!important }
@@ -44,11 +59,11 @@ header { color:#eee; padding:12px; font-size:20px; height:45px; font-family:"Ope
 
 <header>
   <div id=heading style="float:left">Simple Chat - for Flexi-RAG<br>
-    <span id=message style="color:yellow;font-size:10px">
+    <span id=message style="color: #bd34fe; XXXcolor:yellow;font-size:10px">
         Back to: <a href="/">Home</a>
     </span>
     <span>&nbsp;</span> 
-    <span id=message style="color:yellow;font-size:10px">
+    <span id=message style="color: #bd34fe; XXXcolor:yellow;font-size:10px">
         This chat client based on: <a href="https://github.com/casualwriter/vanilla-chatgpt" target=_NEW>vanilla-chatgpt@20230412@github</a>
     </span>
   </div>
@@ -61,7 +76,7 @@ header { color:#eee; padding:12px; font-size:20px; height:45px; font-family:"Ope
   </div>
 </header>
 
-<div id="content" style="margin:8px;color:#112;background:bed">
+<div id="content" style="margin:8px;color:#ffe; XXXcolor:#112;background:bed">
   <div id="right">
      <textarea id=prompt rows=3 placeholder="please input prompt here.."></textarea>
      <div id="list" style="height:calc(100vh - 163px)">
@@ -433,3 +448,5 @@ chat.recognition = () => {
   chat('prompt').value = 'Listening...'
 }   
 </script>
+
+</html>
