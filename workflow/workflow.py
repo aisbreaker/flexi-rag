@@ -1,9 +1,9 @@
 from langgraph.graph import END, StateGraph, START
-from workflow.graph_state import GraphState
+from workflow.graph_state import AnswerWorkflowGraphState
 from workflow.graph_nodes import transform_query, web_search, route_question, retrieve, grade_documents, generate, decide_to_generate, grade_generation_v_documents_and_question
 
 def create_workflow():
-    workflow = StateGraph(GraphState)
+    workflow = StateGraph(AnswerWorkflowGraphState)
 
     # Define the nodes
     workflow.add_node("web_search", web_search)  # web search

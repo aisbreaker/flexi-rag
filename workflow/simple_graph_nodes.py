@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 from langchain.schema import Document
 from answer_service.generate_2 import generate_answer
 
@@ -6,12 +6,13 @@ from langchain import hub
 from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
 from langchain_core.runnables import RunnableConfig
+from langchain_core.messages import AnyMessage
 
 import logging
                            
 import answer_service.retrieval_grader_1
 from utils.string_util import str_limit
-from workflow.graph_state import GraphState
+from workflow.graph_state import AnswerWorkflowGraphState
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ def generate(state):
 
 
 async def generate_on_last_node(
-        state: GraphState,
+        state: AnswerWorkflowGraphState,
         config: RunnableConfig
     ) -> Dict:
 
@@ -134,26 +135,104 @@ async def generate_on_last_node(
     #return {"documents": documents, "messages": messages, "generation": generation}
     return {"documents": documents, "generation": generation}
 
-def generate2(state):
+
+
+def enrich_first_question_by_retrieved_documents(
+        state: AnswerWorkflowGraphState,
+        config: RunnableConfig
+    ) -> Dict:
     """
-    Generate answer
+    Identify the (first) question: it's the first user message of a chat
+
+    Retrive documents relevant to the question
+    and enrich the question with the retrieved documents
 
     Args:
-        state (dict): The current graph state
+        state (dict): The current graph state inclusive messages
 
     Returns:
-        state (dict): New key added to state: generation, that contains LLM generation
+        state (dict): Graph state with extended messages
     """
-    print("---GENERATE---")
-    messages = state["messages"]
-    documents = state["documents"]
 
-    # RAG generation
-    #generation = rag_chain.invoke({"context": documents, "question": question})
-    generation = "Sorrrrry - I'don't know!!!" # generate_answer("", messages)
-    #messages.add_message(generation)
+    logger.info("---ENRICH FIRST QUESTION BY RETRIEVED DOCUMENTS---")   
 
-    return {"documents": documents, "messages": messages, "generation": generation}
+    # search the (first) question
+    messages: list[AnyMessage] = state["messages"]
+    index_of_first_question = get_index_of_the_first_question(messages)
+
+    if index_of_first_question is None:
+        # no question found: nothing to do/to changes
+        return {}
+    else:
+        # get the question
+        question = messages[index_of_first_question]["content"]
+        logger.info(f"question: {question}")
+
+        # enrich the question with the retrieved documents
+        enriched_question = enrich_question_with_retrieved_documents(question, config)
+
+        # update the question
+        messages[index_of_first_question]["content"] = enriched_question
+
+        return {"messages": messages}
+
+
+def enrich_question_with_retrieved_documents(
+    question: str,
+    #documents: Optional[List[Document]],
+    config: RunnableConfig
+) -> str:
+    """
+    Retrieve documents relevant to the question
+    and enrich the question with the retrieved documents
+
+    Args:
+        question (str): The question
+        config (RunnableConfig): The current runnable configuration
+
+    Returns:
+        str: The enriched question
+    """
+
+    logger.info("---ENRICH QUESTION WITH RETRIEVED DOCUMENTS---")
+
+    # get the relevant documents
+    relevant_docs = answer_service.retrieval_grader_1.get_relevant_documents(question)
+
+    # Post-processing
+    def format_docs(docs):
+        for doc in docs:
+            logger.debug(f"docs_context: {str_limit(doc.page_content)}")
+        return "\n\n".join(doc.page_content for doc in docs)
+
+    docs_context = format_docs(relevant_docs)
+
+    logger.info(f"docs_context: {str_limit(docs_context)}")
+
+    # enrich the question with the retrieved documents
+    enriched_question = f"{question}\n\n{docs_context}"
+
+    return enriched_question
+
+
+def get_index_of_the_first_question(messages: list[AnyMessage]) -> Optional[int]:
+    """
+    Identify the (first) question: it's the first user message of a chat
+
+    Args:
+        messages (list[AnyMessage]): The current list of messages
+
+    Returns:
+        int: Index of the first question, or None if no question is found
+    """
+    for i, message in enumerate(messages):
+        if message["role"] == "user":
+            # found the first question
+            return i
+    # no question found
+    return None
+
+
 
 
 ### Edges ###

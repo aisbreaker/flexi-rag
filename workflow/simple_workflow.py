@@ -1,7 +1,8 @@
 from langgraph.graph import END, StateGraph, START
-from workflow.graph_state import GraphState
-from workflow.simple_graph_nodes import generate, generate_on_last_node
-from workflow.simple_graph_nodes import generate2
+from workflow.chat_workflow_functions import generate_on_last_node
+from workflow.graph_state import AnswerWorkflowGraphState
+#from workflow.simple_graph_nodes import generate, generate_on_last_node
+#from workflow.simple_graph_nodes import generate2
 
 #
 # make this an ASYNC workflow,
@@ -9,7 +10,7 @@ from workflow.simple_graph_nodes import generate2
 #
 
 def create_workflow():
-    workflow = StateGraph(GraphState)
+    workflow = StateGraph(AnswerWorkflowGraphState)
 
     # Define the nodes
     #workflow.add_node("generate", generate)  # generatae
