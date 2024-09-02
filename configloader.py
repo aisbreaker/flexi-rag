@@ -1,3 +1,28 @@
+"""
+Settings are loaded from YAML files:
+- default-config.yaml
+- config.yaml
+
+These settings can be overwritten by environment variables:
+Examples:
+  export RAG_FOO=BAR                      # string value
+                                          # with RAG_ prefix
+
+  export RAG_NESTED__LEVEL__KEY=1         # Double underlines
+                                          # denotes nested settings
+                                          # nested = {
+                                          #     "level": {"key": 1}
+                                          # }
+(More details on this: https://www.dynaconf.com/#on-env-vars )
+                                          
+The internal implementation is based on the Dynaconf library,
+but special Dynaconf features/syntax are not allowed to be used
+because the internal implementation can change in the future.
+
+Hydra/omegaconf is not used internally
+because it does not support overwriting by environment variables.
+"""
+
 import yaml
 import os
 
@@ -5,77 +30,27 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-#
-# This logic is used to load and merge configurations from two YAML files.
-#
-# The default configuration is loaded from 'default-values.yaml'
-# and the  specific configuration is loaded from 'values.yaml'.
-# The specific configuration overrides the default configuration.
-#
-# Any of this configuratin can be overridden by setting an appropriate environment variable.
+from dynaconf import Dynaconf
 
-def load_yaml_file(file_path):
-    """Load YAML file from the given path."""
-    with open(file_path, 'r') as file:
-        return yaml.safe_load(file)
-
-def merge_configs(default_config, override_config):
-    """Merge two configurations with the override_config taking precedence."""
-    def merge_dicts(default_dict, override_dict):
-        merged_dict = default_dict.copy()
-        if override_dict is not None and hasattr(override_dict, "items") is True:
-            for key, value in override_dict.items():
-                if key in merged_dict and isinstance(merged_dict[key], dict) and isinstance(value, dict):
-                    merged_dict[key] = merge_dicts(merged_dict[key], value)
-                elif key in merged_dict and isinstance(merged_dict[key], list) and isinstance(value, list):
-                    merged_dict[key] = merged_dict[key] + value
-                else:
-                    merged_dict[key] = value
-            return merged_dict
-        else:
-            return default_dict
-
-    return merge_dicts(default_config, override_config)
+settings = Dynaconf(
+    #root_path="/data/aisbreaker-workspace/hapkecom-github/flexi-rag/",
+    settings_files=[
+        "default-config.yaml",
+        "config.yaml",
+        #".secrets.yaml",
+    ],
+    #environments=True,
+    #env_switcher="MYAPP_MODE",         # `export MYAPP_MODE=production`
+    envvar_prefix="RAG"
+)
 
 
-def overwrite_with_env_variables(config, key_prefix=""):
-    """Overwrite configuration values with environment variables if they exist.
+# Accessing a setting
+logger.info(f"test.value={settings.name}")
+logger.info(f"config.crawling.enabled={settings.config.crawling.enabled}")
+logger.info(f"test.value={settings.test.value}")
 
-    Args:
-        config (dict): The configuration dictionary to be overwritten.
-        key_prefix (str, optional): The prefix to be added to the keys when checking for environment variables.
-            For example, if the key_prefix is "database.", the environment variable for the (nested) key "host" would be "DATABASE_HOST".
-            Defaults to "".
 
-    Returns:
-        dict: The updated configuration dictionary.
-    """
-    for key, value in config.items():
-        try:
-            # assuming environment variables are uppercase versions of the config keys
-            env_var = f"{key_prefix}{key}".upper().replace(".", "_")
-
-            # single value
-            if env_var in os.environ:
-                # Convert environment variable string to the correct type (e.g., int, float, bool)
-                if isinstance(value, int):
-                    config[key] = int(os.environ[env_var])
-                elif isinstance(value, float):
-                    config[key] = float(os.environ[env_var])
-                elif isinstance(value, bool):
-                    config[key] = bool(os.environ[env_var])
-                else:
-                    # default to string
-                    config[key] = os.environ[env_var]
-            # nested value
-            elif isinstance(value, dict):
-                config[key] = overwrite_with_env_variables(value, f"{key_prefix}{key}.")
-            # list
-            elif isinstance(value, list):
-                config[key] = [overwrite_with_env_variables(item, f"{key_prefix}{key}.") if isinstance(item, dict) else item for item in value]
-        except Exception as e:
-            logger.error(f"Error while overwriting config with environment variables: key_prefix='{key_prefix}', key='{key}', (old)value='{value}', error={e}", e)
-    return config
 
 def config_str(config, indent=0) -> str:
     """Create a formatted multiline-string of the configuration dictionary with proper indentation."""
@@ -93,6 +68,8 @@ def config_str(config, indent=0) -> str:
                 else:
                     result += linestart + f"{key}: {value}"
     return result
+
+logger.info("## Final Configuration:"+config_str(settings.as_dict()))
 
 def main():
     logging.basicConfig(

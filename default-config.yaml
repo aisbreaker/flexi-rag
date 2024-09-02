@@ -3,6 +3,14 @@
 # (in this file are the default settings/default values)
 #
 config:
+  common:
+    default_llm_with_streaming:
+      ChatOpenAI:
+        model_name: "gpt-4o"
+        # overwrite with: export RAG_CONFIG__COMMON__DEFAULT_LLM_WITH_STREAMING__ChatOpenAI__model_name="gpt-ais-invalid-model"
+        temperature: 0
+        streaming: True
+
   crawling:
     enabled: true
     depth: 3

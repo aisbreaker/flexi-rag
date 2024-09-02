@@ -1,7 +1,6 @@
 from langgraph.graph import END, StateGraph, START
-from workflow.chat_workflow_functions import generate_on_last_node
 from workflow.graph_state import AnswerWorkflowGraphState
-#from workflow.simple_graph_nodes import generate, generate_on_last_node
+from workflow.simple_graph_nodes import generate, generate_on_last_node
 #from workflow.simple_graph_nodes import generate2
 
 #
