@@ -4,31 +4,26 @@
 #
 config:
   common:
-    default_llm:
-      name: ChatOpenAI
-      ChatOpenAI:
+    llms:
+      ChatOpenAI_default_llm:
         module: langchain_openai
         class: ChatOpenAI
         args:
           # you can overwrite, e.g. "model_name" with environment variable:
           #   export RAG_CONFIG__COMMON__DEFAULT_LLM_WITH_STREAMING__ChatOpenAI__args__model_name="gpt-ais-invalid-model"
           model_name: "gpt-4o"
-          temperature: 0
+          temperature: 0.2
           streaming: False
 
-    default_llm_with_streaming:
-      name: ChatOpenAI
-      ChatOpenAI:
+      ChatOpenAI_default_llm_with_streaming:
         module: langchain_openai
         class: ChatOpenAI
         args:
           model_name: "gpt-4o"
-          temperature: 0
+          temperature: 0.2
           streaming: True
 
-    document_grader_llm:
-      name: document-grader-ChatOpenAI
-      document-grader-ChatOpenAI:
+      ChatOpenAI_strict_llm:
         module: langchain_openai
         class: ChatOpenAI
         args:
@@ -36,20 +31,20 @@ config:
           temperature: 0
           streaming: False
 
-    rewrite_question_llm:
-      name: rewrite-question-ChatOpenAI
-      rewrite-question-ChatOpenAI:
-        module: langchain_openai
-        class: ChatOpenAI
-        args:
-          model_name: "gpt-4o"
-          temperature: 0
-          streaming: False
-
+  rag_index_service:
+    enabled: true
   crawling:
     enabled: true
     depth: 3
     max_pages: 1000
+
+
+  rag_response_service:
+    default_llm: ChatOpenAI_default_llm
+    default_llm_with_streaming: ChatOpenAI_default_llm_with_streaming
+    document_grader_llm: ChatOpenAI_strict_llm
+    rewrite_question_llm: ChatOpenAI_strict_llm
+
 
   embedding_and_indexing:
     enabled: true
