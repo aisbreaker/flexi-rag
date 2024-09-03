@@ -10,8 +10,8 @@ from fastapi.responses import StreamingResponse
 
 from pydantic import BaseModel
 import shortuuid
-from workflow.simple_workflow import create_workflow
-#from workflow.chat_workflow import create_workflow
+#from workflow.simple_workflow import create_workflow
+from workflow.chat_workflow import create_workflow
 from langchain_core.chat_history import BaseChatMessageHistory
 
 
@@ -118,7 +118,7 @@ async def chat_completions(request: ChatRequest):
                         if content is None:
                             continue
                         # process content: i.e. send to REST client
-                        logger.info(f"Final node content (Chunk): {content}")
+                        logger.info(f"Final node content (Chunk): '{content}'")
                         # {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1694268190,"model":"gpt-4o-mini", "system_fingerprint": "fp_44709d6fcb", "choices":[{"index":0,"delta":{"content":"Hello"},"logprobs":null,"finish_reason":null}]}
                         response_data = {
                             "id": id,
@@ -136,10 +136,11 @@ async def chat_completions(request: ChatRequest):
                             ],
                             "created": int(time.time()),
                         }
-                        # yield as SSE
-                        str = f"data: {json.dumps(response_data)}\n\n"
-                        logger.info(f"Yielding: {str}")
-                        yield str
+                        # yield as Server-Side-Event (SSE)
+                        data_str = f"data: {json.dumps(response_data)}"
+                        data_str_with_newlines = data_str +"\n\n"
+                        logger.debug(f"  Yielding (plus non-logged newlines): {data_str}")
+                        yield data_str_with_newlines
 
                 # generation finished
                 stop_response_data = {

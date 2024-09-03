@@ -10,7 +10,7 @@ from utils.string_util import str_limit
 
 logger = logging.getLogger(__name__)
 
-def get_relevant_documents(question):
+async def get_relevant_documents(question):
     """Get relevant documents for a given question."""
 
     #question = "agent memory"
