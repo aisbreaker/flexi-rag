@@ -1,7 +1,7 @@
 # administrative endpoints for the API
 from fastapi import APIRouter, HTTPException
 
-from index_service.build_index import get_all_doc_parts_from_sqldb, get_all_docs_from_sqldb, get_all_parts_from_sqldb
+from rag_index_service.build_index import get_all_doc_parts_from_sqldb, get_all_docs_from_sqldb, get_all_parts_from_sqldb
 
 router = APIRouter()
 

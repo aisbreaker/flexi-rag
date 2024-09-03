@@ -7,7 +7,7 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_core.documents import Document
 
 from factory.llm_factory import get_document_grader_llm
-from index_service.build_index import get_vectorstore, get_vectorstore_retriever, vectorStoreRetriever
+from rag_index_service.build_index import get_vectorstore, get_vectorstore_retriever, vectorStoreRetriever
 from utils.string_util import str_limit
 
 logger = logging.getLogger(__name__)

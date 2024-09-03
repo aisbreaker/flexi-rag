@@ -1,6 +1,6 @@
 from typing import Dict, Optional
 from langchain.schema import Document
-from answer_service.not_used_yet.generate_2 import generate_answer
+from rag_response_service.not_used_yet.generate_2 import generate_answer
 
 from langchain import hub
 from langchain_core.output_parsers import StrOutputParser
@@ -10,10 +10,10 @@ from langchain_core.messages import AnyMessage
 
 import logging
                            
-import answer_service.document_retrieval_grader
+import rag_response_service.document_retrieval_grader
 from factory.llm_factory import get_default_llm_with_streaming, get_default_llm_without_streaming
 from utils.string_util import str_limit
-from workflow.graph_state import AnswerWorkflowGraphState
+from rag_workflow.graph_state import AnswerWorkflowGraphState
 
 logger = logging.getLogger(__name__)
 

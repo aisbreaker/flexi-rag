@@ -5,7 +5,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
 import logging
                            
-import answer_service.document_retrieval_grader
+import rag_response_service.document_retrieval_grader
 from utils.string_util import str_limit
 
 logger = logging.getLogger(__name__)

@@ -10,8 +10,8 @@ from fastapi.responses import StreamingResponse
 
 from pydantic import BaseModel
 import shortuuid
-#from workflow.simple_workflow import create_workflow
-from workflow.chat_workflow import create_workflow
+#from rag_workflow.simple_workflow import create_workflow
+from rag_workflow.chat_workflow import create_workflow
 from langchain_core.chat_history import BaseChatMessageHistory
 
 

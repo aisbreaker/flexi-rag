@@ -16,8 +16,8 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import AnyMessage
 from langgraph.graph import END, StateGraph, START
 from factory.llm_factory import get_default_llm_with_streaming, get_default_llm_without_streaming
-from workflow.chat_workflow_tools import Question, enrich_questions_with_retrieved_documents
-from workflow.chat_workflow_tools import default_llm_with_streaming, default_llm_without_streaming
+from rag_workflow.chat_workflow_tools import Question, enrich_questions_with_retrieved_documents
+from rag_workflow.chat_workflow_tools import default_llm_with_streaming, default_llm_without_streaming
 
 import logging
                            

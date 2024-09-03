@@ -8,7 +8,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
 import shortuuid
-from index_service.wget_document_loader import WgetDocumentLoader
+from rag_index_service.wget_document_loader import WgetDocumentLoader
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
@@ -93,6 +93,9 @@ def start_indexing():
     # wait for the first round to finish
     while get_indexing_single_run_counter() < 1:
         time.sleep(1)
+
+    # first round done
+    logger.info("First indexing round done. Indexing is now running in the background.")
 
 
 def indexing_endless_loop_worker():

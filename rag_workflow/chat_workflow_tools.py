@@ -13,16 +13,16 @@ from langchain import hub
 from langchain_openai import ChatOpenAI
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import AnyMessage
-from answer_service.question_rewriter import rewrite_question_for_vectorsearch_retrieval
-from utils.document_utils import get_document_source
+from rag_response_service import document_retrieval
+from rag_response_service.question_rewriter import rewrite_question_for_vectorsearch_retrieval
+from utils.document_util import get_document_source
 
-import config
+import tool_service.config as config
 
 import logging
     
-import answer_service.document_retrieval
 from utils.string_util import str_limit
-from workflow.graph_state import AnswerWorkflowGraphState
+
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +117,7 @@ async def enrich_question_str_with_retrieved_documents(
     logger.info("---ENRICH QUESTION WITH RETRIEVED DOCUMENTS---")
 
     # get the relevant documents
-    relevant_docs: List[Document] = await answer_service.document_retrieval.get_relevant_documents(question_str)
+    relevant_docs: List[Document] = await document_retrieval.get_relevant_documents(question_str)
 
     # do I need to enrich further?
     if relevant_docs is None or len(relevant_docs) == 0:
@@ -128,7 +128,7 @@ async def enrich_question_str_with_retrieved_documents(
         tuned_question_str: str = await rewrite_question_for_vectorsearch_retrieval(question_str)
 
         # get the relevant documents (again)
-        relevant_docs = await answer_service.document_retrieval.get_relevant_documents(tuned_question_str)
+        relevant_docs = await document_retrieval.get_relevant_documents(tuned_question_str)
         logger.info(f"found {str(len(relevant_docs))} relevant docs with tuned question")
 
     # enrich the question with the retrieved documents

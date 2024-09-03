@@ -1,35 +1,21 @@
 import logging
-
-logging.basicConfig(
-    format='%(asctime)s.%(msecs)03d %(levelname)-8s %(filename)s:%(funcName)s() - %(message)s',
-    level=logging.INFO,
-    datefmt='%Y-%m-%d %H:%M:%S')
-
-# Set different levels for different modules
-logging.getLogger('index_service').setLevel(logging.DEBUG)
-logging.getLogger('answer_service').setLevel(logging.DEBUG)
-#logging.getLogger('answer_service').setLevel(logging.WARNING)
+import tool_service.logging_setup
 
 logger = logging.getLogger(__name__)
 
 # standalone command execution
 
-# call build_index_py here
-#from index_service.build_index import vectorStoreRetriever
-#import index_service
-import index_service.build_index
-
-
-index_service.build_index.start_indexing()
-logger.info("fist indexing done XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+# start building the index
+from rag_index_service import build_index
+build_index.start_indexing()
 
 
 # start server with API?
 if True:
     from fastapi import FastAPI
     from fastapi.staticfiles import StaticFiles
-    from api import endpoints
-    from api import admin_endpoints
+    from exported_api import endpoints
+    from exported_api import admin_endpoints
 
     app = FastAPI()
 
@@ -66,17 +52,18 @@ test_queries = False
 if test_queries:
     print("== generation")
     # call generate_2_py here
-    import answer_service.not_used_yet.generate_2
+    from rag_response_service.not_used_yet import generate_2
+
     question1 = "What is dance123?"
     question2 = "What is short-term memory?" # no working well: "What is agent memory?"
     #question2 = "What is Java?"
 
     logger.info("=====================")
-    answer1 = answer_service.not_used_yet.generate_2.generate_answer(question1)
+    answer1 = generate_2.generate_answer(question1)
     logger.info("question1: "+str(question1))
     logger.info("answer1:" +str(answer1))
 
     logger.info("=====================")
-    answer2 = answer_service.not_used_yet.generate_2.generate_answer(question2)
+    answer2 = generate_2.generate_answer(question2)
     logger.info("question2: "+str(question2))
     logger.info("answer2:" +str(answer2))
