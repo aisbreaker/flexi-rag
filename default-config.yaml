@@ -11,7 +11,7 @@ config:
         args:
           # you can overwrite, e.g. "model_name" with environment variable:
           #   export RAG_CONFIG__COMMON__DEFAULT_LLM_WITH_STREAMING__ChatOpenAI__args__model_name="gpt-ais-invalid-model"
-          model_name: "gpt-4o"
+          model_name: "gpt-4o-mini"
           temperature: 0.2
           streaming: False
 
@@ -19,7 +19,7 @@ config:
         module: langchain_openai
         class: ChatOpenAI
         args:
-          model_name: "gpt-4o"
+          model_name: "gpt-4o-mini"
           temperature: 0.2
           streaming: True
 
@@ -27,7 +27,7 @@ config:
         module: langchain_openai
         class: ChatOpenAI
         args:
-          model_name: "gpt-4o"
+          model_name: "gpt-4o-mini"
           temperature: 0
           streaming: False
 
