@@ -1,6 +1,6 @@
 from typing import Dict, Optional
 from langchain.schema import Document
-from answer_service.generate_2 import generate_answer
+from answer_service.not_used_yet.generate_2 import generate_answer
 
 from langchain import hub
 from langchain_core.output_parsers import StrOutputParser
@@ -10,7 +10,7 @@ from langchain_core.messages import AnyMessage
 
 import logging
                            
-import answer_service.retrieval_grader_1
+import answer_service.document_retrieval_grader
 from factory.llm_factory import get_default_llm_with_streaming, get_default_llm_without_streaming
 from utils.string_util import str_limit
 from workflow.graph_state import AnswerWorkflowGraphState
@@ -199,7 +199,7 @@ def enrich_question_with_retrieved_documents(
     logger.info("---ENRICH QUESTION WITH RETRIEVED DOCUMENTS---")
 
     # get the relevant documents
-    relevant_docs = answer_service.retrieval_grader_1.get_relevant_documents(question)
+    relevant_docs = answer_service.document_retrieval_grader.get_relevant_documents(question)
 
     # Post-processing
     def format_docs(docs):

@@ -8,21 +8,19 @@ from typing import Dict, List, Optional
 
 from async_lru import alru_cache
 from langchain.schema import Document
-from answer_service.generate_2 import generate_answer
 
 from langchain import hub
-from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import AnyMessage
-from langgraph.graph import END, StateGraph, START
+from answer_service.question_rewriter import rewrite_question_for_vectorsearch_retrieval
 from utils.document_utils import get_document_source
-from workflow.chat_input_output_state import ChatInputOutputState
-from workflow.graph_state import AnswerWorkflowGraphState
+
+import config
 
 import logging
     
-import answer_service.retrieval_grader_1
+import answer_service.document_retrieval
 from utils.string_util import str_limit
 from workflow.graph_state import AnswerWorkflowGraphState
 
@@ -88,12 +86,6 @@ async def enrich_questions_with_retrieved_documents(
         messages[enriched_question.message_index]["content"] = enriched_question.enriched_content
     return messages
 
-# settings
-maxCachedQuestions = 128
-vectorsearchEnabled = True
-fulltextsearchEnabled = False
-answerGradingEnabled = True
-questionRewritingEnabled = True
 
 async def enrich_question_with_retrieved_documents(question: Question, config: RunnableConfig) -> Question:
     # anything to do?
@@ -104,7 +96,8 @@ async def enrich_question_with_retrieved_documents(question: Question, config: R
 
     return question
 
-@alru_cache(maxsize=maxCachedQuestions)
+
+@alru_cache(maxsize=config.maxCachedQuestions)
 async def enrich_question_str_with_retrieved_documents(
     question_str: str,
     #config: RunnableConfig
@@ -124,7 +117,19 @@ async def enrich_question_str_with_retrieved_documents(
     logger.info("---ENRICH QUESTION WITH RETRIEVED DOCUMENTS---")
 
     # get the relevant documents
-    relevant_docs = await answer_service.retrieval_grader_1.get_relevant_documents(question_str)
+    relevant_docs: List[Document] = await answer_service.document_retrieval.get_relevant_documents(question_str)
+
+    # do I need to enrich further?
+    if relevant_docs is None or len(relevant_docs) == 0:
+        # yes
+        logger.info("More relevant documents needed")
+
+        # improve the question for vectorsearch retrieval
+        tuned_question_str: str = await rewrite_question_for_vectorsearch_retrieval(question_str)
+
+        # get the relevant documents (again)
+        relevant_docs = await answer_service.document_retrieval.get_relevant_documents(tuned_question_str)
+        logger.info(f"found {str(len(relevant_docs))} relevant docs with tuned question")
 
     # enrich the question with the retrieved documents
     enriched_question = attach_documents_to_question_str(question_str, relevant_docs)

@@ -5,7 +5,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
 import logging
                            
-import answer_service.retrieval_grader_1
+import answer_service.document_retrieval_grader
 from utils.string_util import str_limit
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ def generate_answer(messages, documents):
 
     # get context (docs)
     question = messages[-1].content
-    relevant_docs = answer_service.retrieval_grader_1.get_relevant_documents(question)
+    relevant_docs = answer_service.document_retrieval_grader.get_relevant_documents(question)
 
     # Post-processing
     def format_docs(docs):

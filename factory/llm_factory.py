@@ -16,15 +16,29 @@ logger = logging.getLogger(__name__)
 @cache
 def get_default_llm_without_streaming() -> BaseChatModel:
     llm_full_config = settings.config.common["default_llm"]
-    return setup_llm_from_config(llm_full_config)
-
+    llm = setup_llm_from_config(llm_full_config)
+    logger.info(f"Setup done: config.common.default_llm={llm}")
+    return llm
 @cache
 def get_default_llm_with_streaming() -> BaseChatModel:
     llm_full_config = settings.config.common["default_llm_with_streaming"]
-    return setup_llm_from_config(llm_full_config)
+    llm = setup_llm_from_config(llm_full_config)
+    logger.info(f"Setup done: config.common.default_llm_with_streaming={llm}")
+    return llm
 
 
+def get_document_grader_llm() -> BaseChatModel:
+    llm_full_config = settings.config.common["document_grader_llm"]
+    llm = setup_llm_from_config(llm_full_config)
+    logger.info(f"Setup done: config.common.document_grader_llm={llm}")
+    return llm
 
+
+def get_rewrite_question_llm() -> BaseChatModel:
+    llm_full_config = settings.config.common["rewrite_question_llm"]
+    llm = setup_llm_from_config(llm_full_config)
+    logger.info(f"Setup done: config.common.rewrite_question_llm={llm}")
+    return llm
 
 
 #

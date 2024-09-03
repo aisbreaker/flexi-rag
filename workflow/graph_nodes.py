@@ -1,6 +1,6 @@
 from langchain.schema import Document
 
-from answer_service.hallucination_grader import hallucination_grader
+from answer_service.not_used_yet.hallucination_grader import hallucination_grader
 
 
 def retrieve(state):

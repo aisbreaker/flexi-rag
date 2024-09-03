@@ -1,20 +1,22 @@
-### Retrieval Grader
+### Retrieval/Document Grader
 
 import logging
+from typing import List
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.pydantic_v1 import BaseModel, Field
-from langchain_openai import ChatOpenAI
+from langchain_core.documents import Document
 
+from factory.llm_factory import get_document_grader_llm
 from index_service.build_index import get_vectorstore, get_vectorstore_retriever, vectorStoreRetriever
 from utils.string_util import str_limit
 
 logger = logging.getLogger(__name__)
 
-async def get_relevant_documents(question):
-    """Get relevant documents for a given question."""
 
-    #question = "agent memory"
-    #question = "What is Java?"
+async def grade_documents_for_question(question: str, documents: List[Document]) -> List[Document]:
+    """
+    Grade documents for a given question.
+    """
 
     # Data model
     class GradeDocuments(BaseModel):
@@ -24,9 +26,8 @@ async def get_relevant_documents(question):
             description="Documents are relevant to the question, 'yes' or 'no'"
         )
 
-
     # LLM with function call
-    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0) # cheaper that gpt-4o
+    llm = get_document_grader_llm()
     structured_llm_grader = llm.with_structured_output(GradeDocuments)
 
     # Prompt
@@ -42,26 +43,19 @@ async def get_relevant_documents(question):
         ]
     )
 
+    # Combine the prompt and the LLM
     retrieval_grader = grade_prompt | structured_llm_grader
 
-
-    #docs = vectorStoreRetriever.get_relevant_documents(question) # LangChainDeprecationWarning: The method `BaseRetriever.get_relevant_documents` was deprecated in langchain-core 0.1.46 and will be removed in 0.3.0. Use invoke instead.
-    #docs = retriever.invoke({"question": question, "documents": docs})
-    vectorStoreRetriever = get_vectorstore_retriever()
-    #docs = vectorStoreRetriever.get_relevant_documents(question)
-    vs = get_vectorstore()
-    docs = vs.similarity_search(question, k=4)
-    #docs = vectorStoreRetriever.invoke(input=question)
-    logger.debug("found "+str(len(docs))+" docs in vectorstore")
-
-    # iterate over the documents
-    relevant_docs = []
-    for doc in docs:
-        # print(doc.page_content)
+    # Iterate over the documents
+    # TODO: make this parallel/async with ainvoke
+    relevant_docs: List[Document] = []
+    for doc in documents:
         doc_txt = doc.page_content
         relevance_binary_score = retrieval_grader.invoke({"question": question, "document": doc_txt})
         logger.debug(f"relevance_binary_score={relevance_binary_score} for doc={str_limit(doc_txt, 1000)}")
         if (relevance_binary_score.binary_score == "yes"):
             relevant_docs.append(doc)
-    logger.info(f"found {str(len(relevant_docs))} relevant docs out of {str(len(docs))} candidates")
+
+    # Result
+    logger.info(f"Found {str(len(relevant_docs))} relevant docs out of {str(len(documents))} candidates")
     return relevant_docs

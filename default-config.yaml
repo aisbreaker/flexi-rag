@@ -26,6 +26,26 @@ config:
           temperature: 0
           streaming: True
 
+    document_grader_llm:
+      name: document-grader-ChatOpenAI
+      document-grader-ChatOpenAI:
+        module: langchain_openai
+        class: ChatOpenAI
+        args:
+          model_name: "gpt-4o"
+          temperature: 0
+          streaming: False
+
+    rewrite_question_llm:
+      name: rewrite-question-ChatOpenAI
+      rewrite-question-ChatOpenAI:
+        module: langchain_openai
+        class: ChatOpenAI
+        args:
+          model_name: "gpt-4o"
+          temperature: 0
+          streaming: False
+
   crawling:
     enabled: true
     depth: 3
