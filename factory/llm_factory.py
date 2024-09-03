@@ -1,6 +1,6 @@
 
 from functools import cache
-from langchain_openai import ChatOpenAI
+from typing import Dict, Optional
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from configloader import settings
@@ -9,27 +9,89 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-#def get_default_llm_with_streaming() -> BaseChatModel:
-#    return ChatOpenAI(model_name="gpt-4o", temperature=0, streaming=True)
+
+@cache
+def get_default_llm_without_streaming() -> BaseChatModel:
+    llm_full_config = settings.config.common["default_llm"]
+    return setup_llm_from_config(llm_full_config)
 
 @cache
 def get_default_llm_with_streaming() -> BaseChatModel:
-    local_config = None
-    try:
-        local_config = settings.config.common.default_llm_with_streaming
-        logger.debug(f"local_config: {local_config}")
+    llm_full_config = settings.config.common["default_llm_with_streaming"]
+    return setup_llm_from_config(llm_full_config)
 
-        # get the first key in the dictionary
-        class_name = list(local_config.keys())[0]
-        class_args = local_config[class_name]
-        logger.info(f"Setup LLM: {class_name}({class_args})")
+
+
+
+
+#
+# helper functions for dynamic LLM setup
+#
+
+def setup_llm_from_config(llm_full_config: Optional[Dict]) -> BaseChatModel:
+    """
+    Setup LLM from full config. Fails with error if not possible.
+
+    Args:
+        llm_full_config (dict): LLM full configuration
+        
+    Returns:
+        BaseChatModel: LLM instance
+    """
+    # pre-checks
+    if llm_full_config is None:
+        logger.error(f"Error in LLM setup: llm_long_config is None")
+        return None
+    llm_name = llm_full_config["name"]
+    if llm_name is None:
+        logger.error(f"Error in LLM setup: LLM 'name' is not configured")
+        return None
+    llm_config = llm_full_config[llm_name]
+    if llm_config is None:
+        logger.error(f"Error in LLM setup: no config found for LLM name='{llm_name}'")
+        return None
+
+    # action
+    return setup_llm_from_specific_config(llm_config, llm_name)
+
+def setup_llm_from_specific_config(llm_config: Optional[Dict], llm_name: Optional[str]) -> BaseChatModel:
+    """
+    Setup LLM from config. Fails with error if not possible.
+
+    Args:
+        llm_config (dict): LLM configuration
+        llm_name (str): LLM name (for logging purposes only)
+        
+    Returns:
+        BaseChatModel: LLM instance
+    """
+    try:
+        # TODO: remove access tokens before logging
+        logger.info(f"Setup LLM: {llm_name}({llm_config})")
+
+        # pre-checks
+        if llm_config is None:
+            logger.error(f"Error in LLM setup: llm_config is None for {llm_name}")
+            return None
+
+        # get the the parameters
+        module_name = llm_config["module"]
+        class_name = llm_config["class"]
+        class_kwargs = llm_config["args"]
 
         # instantiate the class (dynamic instantiation)
-        return globals()[class_name](**local_config[class_name])
-        #return ChatOpenAI(model_name="gpt-4o", temperature=0, streaming=True)
+        #instance = globals()[class_name](**class_kwargs)
+        #instance = langchain_openai.ChatOpenAI(model_name="gpt-4o", temperature=0, streaming=True)
+        import importlib
+        module = importlib.import_module(module_name)
+        class_ = getattr(module, class_name)
+        instance = class_(**class_kwargs)
+
+        return instance
+
     except Exception as e:
-        logger.error(f"Error in get_default_llm_with_streaming() with config={local_config}: {e}", e)
+        logger.debug(f"Error in setup LLM: {llm_name}({class_kwargs}): {e}", e)
+        logger.error(f"Error in setup LLM: {llm_name}({class_kwargs}): {e}")
         exit(1)
 
-def get_default_llm_without_streaming() -> BaseChatModel:
-    return ChatOpenAI(model_name="gpt-4o", temperature=0, streaming=False)
+

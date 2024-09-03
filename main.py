@@ -12,7 +12,6 @@ logging.getLogger('answer_service').setLevel(logging.DEBUG)
 
 logger = logging.getLogger(__name__)
 
-
 # standalone command execution
 
 # call build_index_py here
@@ -23,8 +22,6 @@ import index_service.build_index
 
 index_service.build_index.start_indexing()
 logger.info("fist indexing done XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
-
-
 
 
 # start server with API?

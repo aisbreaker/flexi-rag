@@ -39,16 +39,18 @@ settings = Dynaconf(
         "config.yaml",
         #".secrets.yaml",
     ],
+    merge_enabled=True,
     #environments=True,
     #env_switcher="MYAPP_MODE",         # `export MYAPP_MODE=production`
     envvar_prefix="RAG"
 )
 
 
-# Accessing a setting
-logger.info(f"test.value={settings.name}")
+# Accessing a setting . trigger loading now to see config errors here
+logger.info(f"name={settings.name}")
 logger.info(f"config.crawling.enabled={settings.config.crawling.enabled}")
 logger.info(f"test.value={settings.test.value}")
+logger.info(f"test.value2={settings.test.value2}")
 
 
 
