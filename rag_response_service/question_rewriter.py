@@ -5,7 +5,7 @@ from async_lru import alru_cache
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-import tool_service.config as config
+import service.config as config
 from factory.llm_factory import get_rewrite_question_llm
 
 logger = logging.getLogger(__name__)

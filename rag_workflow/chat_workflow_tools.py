@@ -17,7 +17,7 @@ from rag_response_service import document_retrieval
 from rag_response_service.question_rewriter import rewrite_question_for_vectorsearch_retrieval
 from utils.document_util import get_document_source
 
-import tool_service.config as config
+import service.config as config
 
 import logging
     

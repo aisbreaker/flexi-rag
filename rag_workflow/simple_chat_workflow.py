@@ -1,27 +1,20 @@
 """
-Definition of the RAG-workflow
-for generating answers to questions in a chat.
-
-Here we use a single node workflow graph,
-which is a simple way to define a workflow with unified workflow state (AnswerWorkflowGraphState).
-All the complex/hierarchical RAG logic and data structures are encapsulated in this node.
+Defines a simple workflow that uses a LLM to generate an answer. No RAG.
 """
 
 from typing import Dict, List, Optional
 from typing_extensions import TypedDict
+from langgraph.graph import END, StateGraph, START
 
-from langchain.schema import Document
-from langchain import hub
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import AnyMessage
-from langgraph.graph import END, StateGraph, START
-from factory.llm_factory import get_default_llm_with_streaming, get_default_llm_without_streaming
-from rag_workflow.chat_workflow_tools import Question, enrich_questions_with_retrieved_documents
-from rag_workflow.chat_workflow_tools import default_llm_with_streaming, default_llm_without_streaming
 
 import logging
                            
+from factory.llm_factory import get_default_llm_with_streaming, get_default_llm_without_streaming
+
 logger = logging.getLogger(__name__)
+
 
 
 #
@@ -46,10 +39,12 @@ class AnswerWorkflowGraphState(TypedDict):
 #
 # LangGraph node(s)
 #
+
 async def generate_chat_answer_node(
         state: AnswerWorkflowGraphState,
         config: RunnableConfig
     ) -> Dict:
+
     """
     Generate answer
 
@@ -67,11 +62,6 @@ async def generate_chat_answer_node(
     messages = state["messages"]
     streaming = state["stream_generate_on_last_node"]
 
-    # Prompt
-    prompt = hub.pull("rlm/rag-prompt")
-    logger.info(f"Generate answer with prompt: {prompt}")
-    # prompt: input_variables=['context', 'question'] metadata={'lc_hub_owner': 'rlm', 'lc_hub_repo': 'rag-prompt', 'lc_hub_commit_hash': '50442af133e61576e74536c6556cefe1fac147cad032f4377b60c436e6cdcb6e'} messages=[HumanMessagePromptTemplate(prompt=PromptTemplate(input_variables=['context', 'question'], template="You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.\nQuestion: {question} \nContext: {context} \nAnswer:"))]
-
     # LLM
     if not streaming:
         llm = get_default_llm_without_streaming()
@@ -82,14 +72,11 @@ async def generate_chat_answer_node(
     # to filter the outputs of the final node for streaming-mode
     llm = llm.with_config(tags=["final_node"])
 
-    # Add context to the question(s)
-    messages = await enrich_questions_with_retrieved_documents(messages, config)
-
     # Run
     if not streaming:
         logger.info("llm invoke (not streaming) ...")
         # Note on Python < 3.11
-        #   https://langchain-ai.github.io/langgraph/how-tos/streaming-tokens/
+        # https://langchain-ai.github.io/langgraph/how-tos/streaming-tokens/
         #   "When using python 3.8, 3.9, or 3.10, please ensure you manually pass the RunnableConfig through to the llm when invoking it like so: llm.ainvoke(..., config)."
         generation = await llm.ainvoke(messages, config=config)
         logger.info(f"llm await done, generation: '{generation}'")
@@ -102,18 +89,13 @@ async def generate_chat_answer_node(
 
 
 #
-# LangGraph workflow - chat inclusive RAG
+# LangGraph workflow - simple LLM chat without implementing a RAG
 #
 
 def create_workflow():
-    """
-    Create the workflow.
-    
-    Keep in mind that all the (complex) RAG logic is in a single node.
-    """
     workflow = StateGraph(AnswerWorkflowGraphState)
 
-    # Define the node(s) - they contain the actual RAG logic
+    # Define the node(s)
     workflow.add_node("generate", generate_chat_answer_node)
 
     # Build the graph

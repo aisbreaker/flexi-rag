@@ -2,7 +2,7 @@ import logging
 
 def setup_logging():
     """
-    Setup logging for the tool_service module
+    Setup logging for all modules of this project.
     """
 
     default_loglevel = logging.INFO
@@ -17,10 +17,8 @@ def setup_logging():
     logging.getLogger('rag_index_service').setLevel(logging.DEBUG)
     logging.getLogger('rag_response_service').setLevel(logging.DEBUG)
     logging.getLogger('rag_workflow').setLevel(logging.DEBUG)
-    logging.getLogger('tool_service').setLevel(logging.DEBUG)
+    logging.getLogger('service').setLevel(logging.DEBUG)
 
     logger = logging.getLogger(__name__)
 
     logger.info("Logging setup done")
-
-setup_logging()

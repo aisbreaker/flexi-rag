@@ -1,5 +1,5 @@
 from langgraph.graph import END, StateGraph, START
-from rag_workflow.graph_state import AnswerWorkflowGraphState
+from rag_workflow.not_used.graph_state import AnswerWorkflowGraphState
 from rag_workflow.graph_nodes import transform_query, web_search, route_question, retrieve, grade_documents, generate, decide_to_generate, grade_generation_v_documents_and_question
 
 def create_workflow():

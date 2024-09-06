@@ -23,6 +23,7 @@ Hydra/omegaconf is not used internally
 because it does not support overwriting by environment variables.
 """
 
+import json
 import yaml
 import os
 

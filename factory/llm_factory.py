@@ -3,7 +3,7 @@ from functools import cache
 from typing import Dict, Optional
 from langchain_core.language_models.chat_models import BaseChatModel
 
-from tool_service.configloader import settings
+from service.configloader import settings
 import logging
 
 logger = logging.getLogger(__name__)
