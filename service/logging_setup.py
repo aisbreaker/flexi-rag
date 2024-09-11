@@ -19,6 +19,9 @@ def setup_logging():
     logging.getLogger('rag_workflow').setLevel(logging.DEBUG)
     logging.getLogger('service').setLevel(logging.DEBUG)
 
+    logging.getLogger('test').setLevel(logging.DEBUG)
+    logging.getLogger('test_data_gen').setLevel(logging.DEBUG)
+
     logger = logging.getLogger(__name__)
 
     logger.info("Logging setup done")

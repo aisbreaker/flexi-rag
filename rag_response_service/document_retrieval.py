@@ -4,8 +4,8 @@ import logging
 from typing import List
 from langchain_core.documents import Document
 
+from factory.vectorstore_factory import get_vectorstore
 from rag_response_service.document_retrieval_grader import grade_documents_for_question
-from rag_index_service.build_index import get_vectorstore
 from async_lru import alru_cache
 import service.config as config
 

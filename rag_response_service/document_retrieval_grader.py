@@ -6,8 +6,8 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_core.documents import Document
 
-from factory.llm_factory import get_document_grader_llm
-from rag_index_service.build_index import get_vectorstore, get_vectorstore_retriever, vectorStoreRetriever
+from factory.llm_factory import get_document_grader_chat_llm
+#from rag_index_service.build_index import get_vectorstore, get_vectorstore_retriever, vectorStoreRetriever
 from utils.string_util import str_limit
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ async def grade_documents_for_question(question: str, documents: List[Document])
         )
 
     # LLM with function call
-    llm = get_document_grader_llm()
+    llm = get_document_grader_chat_llm()
     structured_llm_grader = llm.with_structured_output(GradeDocuments)
 
     # Prompt

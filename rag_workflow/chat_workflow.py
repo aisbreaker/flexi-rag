@@ -15,7 +15,7 @@ from langchain import hub
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import AnyMessage
 from langgraph.graph import END, StateGraph, START
-from factory.llm_factory import get_default_llm_with_streaming, get_default_llm_without_streaming
+from factory.llm_factory import get_default_chat_llm_with_streaming, get_default_chat_llm_without_streaming
 from rag_workflow.chat_workflow_tools import Question, enrich_questions_with_retrieved_documents
 from rag_workflow.chat_workflow_tools import default_llm_with_streaming, default_llm_without_streaming
 
@@ -74,9 +74,9 @@ async def generate_chat_answer_node(
 
     # LLM
     if not streaming:
-        llm = get_default_llm_without_streaming()
+        llm = get_default_chat_llm_without_streaming()
     else:
-        llm = get_default_llm_with_streaming()
+        llm = get_default_chat_llm_with_streaming()
 
     # This is where we're adding a tag that we'll be using later
     # to filter the outputs of the final node for streaming-mode

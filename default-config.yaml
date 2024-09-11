@@ -4,10 +4,10 @@
 #
 config:
   common:
-    llms:
+    chat_llms:
       ChatOpenAI_default_llm:
-        module: langchain_openai
-        class: ChatOpenAI
+        # class=<module>.<chat-class>
+        class: langchain_openai.ChatOpenAI
         args:
           # you can overwrite, e.g. "model_name" with environment variable:
           #   export RAG_CONFIG__COMMON__DEFAULT_LLM_WITH_STREAMING__ChatOpenAI__args__model_name="gpt-ais-invalid-model"
@@ -16,20 +16,28 @@ config:
           streaming: False
 
       ChatOpenAI_default_llm_with_streaming:
-        module: langchain_openai
-        class: ChatOpenAI
+        class: langchain_openai.ChatOpenAI
         args:
           model_name: "gpt-4o-mini"
           temperature: 0.2
           streaming: True
 
       ChatOpenAI_strict_llm:
-        module: langchain_openai
-        class: ChatOpenAI
+        class: langchain_openai.ChatOpenAI
         args:
           model_name: "gpt-4o-mini"
           temperature: 0
           streaming: False
+
+    databases:
+      vectorstore:
+        # class=<module>.<chat-class>
+        class: langchain_community.vectorstores.Chroma
+        args:
+          persist_directory: "./chroma_db"
+          collection_name: "rag-chroma"
+        embedding_function_arg_name: embedding_function
+
 
   rag_index_service:
     enabled: true
@@ -40,10 +48,10 @@ config:
 
 
   rag_response_service:
-    default_llm: ChatOpenAI_default_llm
-    default_llm_with_streaming: ChatOpenAI_default_llm_with_streaming
-    document_grader_llm: ChatOpenAI_strict_llm
-    rewrite_question_llm: ChatOpenAI_strict_llm
+    default_chat_llm: ChatOpenAI_default_llm
+    default_chat_llm_with_streaming: ChatOpenAI_default_llm_with_streaming
+    document_grader_chat_llm: ChatOpenAI_strict_llm
+    rewrite_question_chat_llm: ChatOpenAI_strict_llm
 
 
   embedding_and_indexing:

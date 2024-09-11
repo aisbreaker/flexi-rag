@@ -24,6 +24,7 @@ because it does not support overwriting by environment variables.
 """
 
 import json
+from typing import Dict
 import yaml
 import os
 
@@ -45,6 +46,32 @@ settings = Dynaconf(
     #env_switcher="MYAPP_MODE",         # `export MYAPP_MODE=production`
     envvar_prefix="RAG"
 )
+
+_no_default = "_NO_DEFAULT_VALUE_PLACEHOLDER_sdknfcw9845cvnhkjrvzh6"
+
+def deep_get(dict: Dict, keys_str: str, default_value: any = _no_default) -> any:
+    """Get a value from a nested dictionary by a dot-separated key string."""
+    keys = keys_str.split(".")
+    dictOrResult = dict
+    used_keys = ""
+    for key in keys:
+        # try to access value
+        used_keys += key
+        dictOrResult = dictOrResult.get(key)
+        if dictOrResult is None:
+            # key not found
+            if default_value == _no_default:
+                raise KeyError(f"Key '{used_keys}' not found in dictionary")
+            else:
+                return default_value
+        # key found
+
+        # prepare next loop
+        used_keys += "."
+
+    # done
+    return dictOrResult
+
 
 
 # Accessing a setting . trigger loading now to see config errors here

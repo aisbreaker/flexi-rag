@@ -5,10 +5,11 @@ import threading
 import time
 from chromadb import GetResult
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Chroma
-from langchain_openai import OpenAIEmbeddings
+from langchain_core.vectorstores import VectorStore
 import shortuuid
+from factory.vectorstore_factory import get_vectorstore
 from rag_index_service.wget_document_loader import WgetDocumentLoader
+from factory.llm_factory import get_default_embeddings
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
@@ -30,7 +31,7 @@ import queue
 logger = logging.getLogger(__name__)
 
 sqlCon: Connection | None = None
-vectorStore: Optional[Chroma] = None
+vectorStore: Optional[VectorStore] = None
 vectorStoreRetriever = None
 
 # in-memory queue of downloaded documents to process
@@ -139,7 +140,7 @@ def indexing_single_run():
     by using a queue and separated threads.
     """
 
-    # start the worker thread to rawl/load all documents from all URLs
+    # start the worker thread to crawl/load all documents from all URLs
     threading.Thread(target=download_all_documents_and_put_them_into_queue, args=(urls,), daemon=False).start()
 
     # process all documents from the queue
@@ -563,7 +564,7 @@ def get_sqldb_connection() -> Connection:
 
     return sqlCon
 
-
+"""
 def get_vectorstore() -> Chroma:
     CHROMA_DB_PATH = "./chroma_db"
     vector_store_collection_name = "rag-chroma"
@@ -571,7 +572,7 @@ def get_vectorstore() -> Chroma:
     global vectorStore
     if vectorStore is None:
         ### from langchain_cohere import CohereEmbeddings
-        embd = OpenAIEmbeddings()
+        embd = get_default_embeddings()
         vectorStore = Chroma(
             collection_name=vector_store_collection_name,
             embedding_function=embd,
@@ -582,3 +583,4 @@ def get_vectorstore() -> Chroma:
 
 def get_vectorstore_retriever() -> VectorStoreRetriever:
     return get_vectorstore().as_retriever()
+"""

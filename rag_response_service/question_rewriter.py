@@ -6,7 +6,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
 import service.config as config
-from factory.llm_factory import get_rewrite_question_llm
+from factory.llm_factory import get_rewrite_question_chat_llm
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ async def rewrite_question_for_vectorsearch_retrieval(question: str) -> str:
     """
 
     # LLM
-    llm = get_rewrite_question_llm()
+    llm = get_rewrite_question_chat_llm()
 
     # Prompt
     system = """You a question re-writer that converts an input question to a better version that is optimized \n 
