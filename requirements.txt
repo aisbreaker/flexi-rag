@@ -8,6 +8,9 @@ shortuuid>=1.0.13
 async-lru>=2.0.4
 dynaconf>=3.2.6
 
+# for testing
+ragas>=0.1.17
+
 # from https://langchain-ai.github.io/langgraph/tutorials/rag/langgraph_adaptive_rag/
 langchain>=0.2.7
 langgraph>=0.1.7
