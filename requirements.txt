@@ -8,17 +8,26 @@ shortuuid>=1.0.13
 async-lru>=2.0.4
 dynaconf>=3.2.6
 
+# vector databases
+chromadb>=0.5.4
+
+# sql databases
+# (sqlite3 module is included in the standard library)
+psycopg2-binary>=2.9.9
+mysql-connector-python-9.0.0
+# pip + sudo apt-get install -y libmariadb-dev
+mariadb>=1.1.10
+
 # for testing
 ragas>=0.1.17
 
 # from https://langchain-ai.github.io/langgraph/tutorials/rag/langgraph_adaptive_rag/
 langchain>=0.2.7
-langgraph>=0.1.7
 langchain_community
 langchain-openai>=0.1.15
 langchain-cohere>=0.1.9
 langchainhub>=0.1.20
-chromadb>=0.5.4
+
 tavily-python>=0.3.3
 tiktoken>=0.7.0
 

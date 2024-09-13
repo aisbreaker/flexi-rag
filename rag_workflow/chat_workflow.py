@@ -8,12 +8,14 @@ All the complex/hierarchical RAG logic and data structures are encapsulated in t
 """
 
 from typing import Dict, List, Optional
+import langchain_core
 from typing_extensions import TypedDict
 
 from langchain.schema import Document
 from langchain import hub
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import AnyMessage
+from langchain_core.messages.system import SystemMessage
 from langgraph.graph import END, StateGraph, START
 from factory.llm_factory import get_default_chat_llm_with_streaming, get_default_chat_llm_without_streaming
 from rag_workflow.chat_workflow_tools import Question, enrich_questions_with_retrieved_documents
@@ -67,10 +69,15 @@ async def generate_chat_answer_node(
     messages = state["messages"]
     streaming = state["stream_generate_on_last_node"]
 
-    # Prompt
-    prompt = hub.pull("rlm/rag-prompt")
-    logger.info(f"Generate answer with prompt: {prompt}")
-    # prompt: input_variables=['context', 'question'] metadata={'lc_hub_owner': 'rlm', 'lc_hub_repo': 'rag-prompt', 'lc_hub_commit_hash': '50442af133e61576e74536c6556cefe1fac147cad032f4377b60c436e6cdcb6e'} messages=[HumanMessagePromptTemplate(prompt=PromptTemplate(input_variables=['context', 'question'], template="You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.\nQuestion: {question} \nContext: {context} \nAnswer:"))]
+    # Prompt: Don't pull because it's not working in air-gapped mode
+    #   or if api.hub.langchain.com:443 is down as of 2024-09-12
+    #prompt = hub.pull("rlm/rag-prompt")
+    #   prompt: input_variables=['context', 'question'] metadata={'lc_hub_owner': 'rlm', 'lc_hub_repo': 'rag-prompt', 'lc_hub_commit_hash': '50442af133e61576e74536c6556cefe1fac147cad032f4377b60c436e6cdcb6e'} messages=[HumanMessagePromptTemplate(prompt=PromptTemplate(input_variables=['context', 'question'], template="You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.\nQuestion: {question} \nContext: {context} \nAnswer:"))]
+    #systemPrompt = "You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.\nQuestion: {question} \nContext: {context} \nAnswer:"
+    systemPromptStr = "You are an assistant for question-answering tasks. Use the provided documents or pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise."
+
+    # Add prompt as system message at the top to all the messages
+    messages = [SystemMessage(content=systemPromptStr)] + messages
 
     # LLM
     if not streaming:

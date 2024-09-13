@@ -1,12 +1,21 @@
 ### Build Index
 
-from sqlite3 import Connection
+# partitially based on idea of
+#   https://stackoverflow.com/questions/52534211/python-type-hinting-with-db-api/77350678#77350678
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from _typeshed.dbapi import DBAPIConnection, DBAPICursor
+else:
+    DBAPIConnection = any
+    DBAPICursor = any
+
 import threading
 import time
 from chromadb import GetResult
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.vectorstores import VectorStore
 import shortuuid
+from factory.sql_database_factory import get_sql_database_connection
 from factory.vectorstore_factory import get_vectorstore
 from rag_index_service.wget_document_loader import WgetDocumentLoader
 from factory.llm_factory import get_default_embeddings
@@ -30,7 +39,8 @@ import queue
 
 logger = logging.getLogger(__name__)
 
-sqlCon: Connection | None = None
+#sqlCon: DBAPIConnection | None = None
+sqlCon = None
 vectorStore: Optional[VectorStore] = None
 vectorStoreRetriever = None
 
@@ -269,7 +279,7 @@ def save_single_document_and_its_parts_in_databases(doc: Document, doc_parts: It
 def save_docs_in_sqldb(docs_list: Iterator[Document]) -> Iterator[Document]:
     logger.info(f"save_docs_in_sqldb ...")
     
-    sqlCon = get_sqldb_connection()
+    sqlCon = get_sql_database_connection_after_setup()
 
     # insert documents (a document represents a a full file/document)
     num = 0
@@ -337,7 +347,7 @@ def save_doc_parts_in_vectorstore_and_sqldb(document_id: str, doc_parts_list: It
     logger.info(f"save_doc_parts_in_vectorstore_and_sqldb (document_id={document_id}) ...")
 
     # insert (document) parts
-    sqlCon = get_sqldb_connection()
+    sqlCon = get_sql_database_connection_after_setup()
     parts_num = 0
     document_parts_num = 0
     for doc_part in doc_parts_list:
@@ -408,7 +418,7 @@ def save_single_part_of_single_document_in_vectorstore_and_sqldb(doc_part: Docum
         is_part_in_vectorstore = len(elems_in_vectorstore_result["ids"]) > 0 # this does not work
 
         # check if part is already in SQL DB
-        sqlCon = get_sqldb_connection()
+        sqlCon = get_sql_database_connection_after_setup()
         cur = sqlCon.cursor()
         cur.execute("SELECT * FROM part WHERE sha256=?", (part_sha256,))
         num_of_rows = len(cur.fetchall())
@@ -454,7 +464,7 @@ def save_single_part_of_single_document_in_vectorstore_and_sqldb(doc_part: Docum
 
 def get_all_docs_from_sqldb() -> List[Dict[str, Any]]:
     # get all rows
-    sqlCon = get_sqldb_connection()
+    sqlCon = get_sql_database_connection_after_setup()
     cur = sqlCon.cursor()
     cur.execute("SELECT id, source, content_type, file_path, file_size, file_sha256, last_modified FROM document")
     rows = cur.fetchall()
@@ -484,7 +494,7 @@ def print_all_docs_from_sqldb():
 
 def get_all_doc_parts_from_sqldb() -> List[Dict[str, Any]]:
     # get all rows
-    sqlCon = get_sqldb_connection()
+    sqlCon = get_sql_database_connection_after_setup()
     cur = sqlCon.cursor()
     cur.execute("SELECT document_id, part_sha256, anker FROM document_part")
     rows = cur.fetchall()
@@ -509,7 +519,7 @@ def print_all_doc_parts_from_sqldb():
 
 def get_all_parts_from_sqldb() -> List[Dict[str, Any]]:
     # get all rows
-    sqlCon = get_sqldb_connection()
+    sqlCon = get_sql_database_connection_after_setup()
     cur = sqlCon.cursor()
     cur.execute("SELECT sha256, content FROM part")
     rows = cur.fetchall()
@@ -547,12 +557,16 @@ def printall():
 # basic database functions
 #
 
-def get_sqldb_connection() -> Connection:
-    import sqlite3
-    SQL_DB_PATH = "./content.db"
+def get_sql_database_connection_after_setup() -> DBAPIConnection:
+    """
+    Get the SQL database connection, setup the tables if necessary.
+
+    Returns: the SQL database connection
+    """
+
     global sqlCon
     if sqlCon is None:
-        sqlCon = sqlite3.connect(SQL_DB_PATH, check_same_thread=False)
+        sqlCon = get_sql_database_connection()
             # see also:
             # - https://docs.python.org/3/library/sqlite3.html#sqlite3.threadsafety
             # - https://discuss.python.org/t/is-sqlite3-threadsafety-the-same-thing-as-sqlite3-threadsafe-from-the-c-library/11463
@@ -563,24 +577,3 @@ def get_sqldb_connection() -> Connection:
         sqlCon.execute(DB_TABLE_document_part)
 
     return sqlCon
-
-"""
-def get_vectorstore() -> Chroma:
-    CHROMA_DB_PATH = "./chroma_db"
-    vector_store_collection_name = "rag-chroma"
-
-    global vectorStore
-    if vectorStore is None:
-        ### from langchain_cohere import CohereEmbeddings
-        embd = get_default_embeddings()
-        vectorStore = Chroma(
-            collection_name=vector_store_collection_name,
-            embedding_function=embd,
-            persist_directory=CHROMA_DB_PATH,
-        )
-
-    return vectorStore
-
-def get_vectorstore_retriever() -> VectorStoreRetriever:
-    return get_vectorstore().as_retriever()
-"""

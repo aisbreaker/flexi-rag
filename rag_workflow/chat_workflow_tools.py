@@ -15,6 +15,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import AnyMessage
 from rag_response_service import document_retrieval
 from rag_response_service.question_rewriter import rewrite_question_for_vectorsearch_retrieval
+from service.configloader import deep_get, settings
 from utils.document_util import get_document_source
 
 import service.config as config
@@ -190,16 +191,33 @@ def identify_questions(messages: List[AnyMessage]) -> List[Question]:
     Returns:
         List[Question]: List of questions
     """   
+
+
     questions = list()
-    # pick all user messages and make them questions
+    enrich_all_user_messages_with_retrieved_documents = deep_get(
+        settings, "config.rag_response_service.enrich_all_user_messages_with_retrieved_documents")
+
+    # Pick one or all user messages and make them questions
     for i, message in enumerate(messages):
-        if message["role"] == "user":
-            question = Question(
-                message_index=i,
-                original_content=message["content"],
-                enriched_content=None)
-            questions.append(question)
+        try:
+            if message["role"] == "user":
+                question = Question(
+                    message_index=i,
+                    original_content=message["content"],
+                    enriched_content=None)
+                questions.append(question)
+
+                # Is one question is enough?
+                if not enrich_all_user_messages_with_retrieved_documents:
+                    break
+        except TypeError:
+            # Attribute access did'n work e.g. for SystemMessage:  if message["role"] == "user"
+            pass
+        except AttributeError:
+            # Attribute access did'n work e.g. for SystemMessage:  if message.get("role") == "user"
+            pass
+
+    # result
+    questions_str = "[" +(",".join(str(q) for q in questions)) + "]"
+    logger.debug(f"Identified {len(questions)} questions in messages: {questions_str}")
     return questions
-
-
-

@@ -61,7 +61,7 @@ def deep_get(dict: Dict, keys_str: str, default_value: any = _no_default) -> any
         if dictOrResult is None:
             # key not found
             if default_value == _no_default:
-                raise KeyError(f"Key '{used_keys}' not found in dictionary")
+                raise KeyError(f"Key '{used_keys}' (of '{keys_str}') not found in dictionary")
             else:
                 return default_value
         # key found

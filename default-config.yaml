@@ -4,16 +4,25 @@
 #
 config:
   common:
+    # LLMs used for the response generation and other tasks
     chat_llms:
+      # Instance(s) of (subtype of) type langchain_core.language_models.chat_models.BaseChatModel
+      #
+      # class=<module>.<chat-class>
+
+      # OpenAI Chat
+      # For args/parameters see: https://github.com/langchain-ai/langchain/blob/master/libs/partners/openai/langchain_openai/chat_models/base.py
       ChatOpenAI_default_llm:
-        # class=<module>.<chat-class>
-        class: langchain_openai.ChatOpenAI
+        class: langchain_openai.ChatOpenAI        
         args:
           # you can overwrite, e.g. "model_name" with environment variable:
           #   export RAG_CONFIG__COMMON__DEFAULT_LLM_WITH_STREAMING__ChatOpenAI__args__model_name="gpt-ais-invalid-model"
           model_name: "gpt-4o-mini"
           temperature: 0.2
           streaming: False
+          #api_key: "<YOUR_OPENAI_API_KEY>"
+          #base_url: "https://api.openai.com/v1"
+          #base_url: "https://your.openai-compatible-api.example.com/v1"
 
       ChatOpenAI_default_llm_with_streaming:
         class: langchain_openai.ChatOpenAI
@@ -29,7 +38,27 @@ config:
           temperature: 0
           streaming: False
 
+
+    # Embeddings LLM used indexing and for the retrieval
+    embedding_llm:
+      # Instance of (subtype of) type langchain_core.embeddings.Embeddings
+      #
+      # class=<module>.<chat-class>
+
+      # OpenAI Embeddings
+      # For args/parameters see: https://github.com/langchain-ai/langchain/blob/master/libs/partners/openai/langchain_openai/embeddings/base.py
+      class: langchain_openai.embeddings.OpenAIEmbeddings
+      args:
+        # Important: If the embedding model changes, the index must be rebuilt!!!
+        model: "text-embedding-3-small"
+        #api_key: "<YOUR_OPENAI_API_KEY>"
+        #base_url: "https://api.openai.com/v1"
+        #base_url: "https://your.openai-compatible-api.example.com/v1"
+
+
     databases:
+      # Vector database - to store and to search for embeddings,
+      # instance of (subtype of) type langchain_core.vectorstores.VectorStore
       vectorstore:
         # class=<module>.<chat-class>
         class: langchain_community.vectorstores.Chroma
@@ -37,6 +66,55 @@ config:
           persist_directory: "./chroma_db"
           collection_name: "rag-chroma"
         embedding_function_arg_name: embedding_function
+
+
+      # SQL database - to store anything else (e.g. documents snippets, ...)
+      # (Uses PEP 249 - Database API Specification 2.0 - https://peps.python.org/pep-0249/),
+      # instance of (subtype of) type _typeshed.dbapi.DBAPIConnection
+      sql_database:
+        # connect=<module>.<connect-function>
+        connect: sqlite3.connect
+        args:
+          # path to the SQLite database file
+          database: "./content.db"
+          # other settings
+          check_same_thread: false      
+
+      # Sqlite3 - requires package: sqlite3
+      ALTERNATIVE_SQLITE3_sql_database:
+        connect: sqlite3.connect
+        args:
+          # path to the SQLite database file
+          database: "/path/to/database/file.db"
+          # other settings
+          check_same_thread: false
+      # PostgreSQL- requires package: psycopg2-binary or psycopg2
+      ALTERNATIVE_POSTGRESQL_sql_database:    # NOT TESTED YET!!!
+        connect: psycopg2.connect
+        args:
+          host: "localhost"
+          port: 5432
+          database: "db_name"
+          user: "db_user"
+          password: "db_password"
+      # MySQL - requires package: mysql-connector-python
+      ALTERNATIVE_MYSQL_sql_database:   # NOT TESTED YET!!!
+        connect: mysql.connector.connect
+        args:
+          host: "localhost"
+          port: 3306
+          database: "db_name"
+          user: "db_user"
+          password: "db_password"
+      # MariaDB - requires package: mariadb (+OS package libmariadb-dev)
+      ALTERNATIVE_MARIADB_sql_database:   # NOT TESTED YET!!!
+        connect: mariadb.connect
+        args:
+          host: "localhost"
+          port: 3306
+          database: "db_name"
+          user: "db_user"
+          password: "db_password"
 
 
   rag_index_service:
@@ -48,10 +126,18 @@ config:
 
 
   rag_response_service:
+    # select the LLMs used for the response generation
     default_chat_llm: ChatOpenAI_default_llm
     default_chat_llm_with_streaming: ChatOpenAI_default_llm_with_streaming
     document_grader_chat_llm: ChatOpenAI_strict_llm
     rewrite_question_chat_llm: ChatOpenAI_strict_llm
+
+    # Only the first user message of a chat is handled as a question and enriched with retrieved documents (DEFAULT):
+    #   enrich_all_user_messages_with_retrieved_documents: false
+    #
+    # Each user message of a chat is handled as a separate question and enriched with retrieved documents
+    #   enrich_all_user_messages_with_retrieved_documents: true
+    enrich_all_user_messages_with_retrieved_documents: false
 
 
   embedding_and_indexing:
