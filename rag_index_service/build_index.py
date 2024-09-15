@@ -3,6 +3,11 @@
 # partitially based on idea of
 #   https://stackoverflow.com/questions/52534211/python-type-hinting-with-db-api/77350678#77350678
 from typing import TYPE_CHECKING
+
+from factory.document_loader_factory import get_document_loader
+from rag_index_service.blob_parser_document_loader import BlobParserDocumentLoader
+from rag_index_service.tools.default_blob_parser import DefaultBlobParser
+from rag_index_service.tools.wget_blob_loader import WgetBlobLoader
 if TYPE_CHECKING:
     from _typeshed.dbapi import DBAPIConnection, DBAPICursor
 else:
@@ -17,7 +22,6 @@ from langchain_core.vectorstores import VectorStore
 import shortuuid
 from factory.sql_database_factory import get_sql_database_connection
 from factory.vectorstore_factory import get_vectorstore
-from rag_index_service.wget_document_loader import WgetDocumentLoader
 from factory.llm_factory import get_default_embeddings
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
@@ -168,8 +172,8 @@ def indexing_single_run():
 
 
 def download_all_documents_and_put_them_into_queue(urls: Iterator[str]):
-    logger.info(f"== download_all_documents_and_put_them_into_queue(): Loading WgetDocumentLoader from ... {urls}")
-    docs = lazy_load_all_urls(urls)
+    logger.info(f"== download_all_documents_and_put_them_into_queue(): Loading from ... {urls}")
+    docs = get_blob_document_loader(urls)
     put_all_downloaded_documents_into_queue(docs)
     logger.info(f"== download_all_documents_and_put_them_into_queue(): Lazy loading + putting into queue ... {str_limit(docs, 1024)}")
     
@@ -207,13 +211,16 @@ def process_all_documents_from_queue_worker():
 #
 # processing multiple documents
 #
-def lazy_load_all_urls(urls: Iterator[str]) -> Iterator[Document]:
+
+#
+# Attention: We need to iterate oder configured loaders instead of URLs
+# TODO!!!
+#
+def get_blob_document_loader(urls: Iterator[str]) -> Iterator[Document]:
     for url in urls:
-        docs_of_single_url = WgetDocumentLoader(url).lazy_load()
+        document_loader = get_document_loader(url)
+        docs_of_single_url = document_loader.lazy_load()
         yield from docs_of_single_url
-
-
-
 
 #
 # processing a single document
