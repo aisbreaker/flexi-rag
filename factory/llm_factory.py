@@ -17,29 +17,29 @@ logger = logging.getLogger(__name__)
 
 @cache
 def get_default_chat_llm_without_streaming() -> BaseChatModel:
-    config_llm_key = deep_get(settings, "config.rag_response_service.default_chat_llm")
+    config_llm_key = deep_get(settings, "config.rag_response.default_chat_llm")
     llm = setup_llm_for_config_llm_key(config_llm_key)
-    logger.info(f"Setup done: config.rag_response_service.default_chat_llm={llm}")
+    logger.info(f"Setup done: config.rag_response.default_chat_llm={llm}")
     return llm
 @cache
 def get_default_chat_llm_with_streaming() -> BaseChatModel:
-    config_llm_key = deep_get(settings, "config.rag_response_service.default_chat_llm_with_streaming")
+    config_llm_key = deep_get(settings, "config.rag_response.default_chat_llm_with_streaming")
     llm = setup_llm_for_config_llm_key(config_llm_key)
-    logger.info(f"Setup done: config.rag_response_service.default_chat_llm_with_streaming={llm}")
+    logger.info(f"Setup done: config.rag_response.default_chat_llm_with_streaming={llm}")
     return llm
 
 
 def get_document_grader_chat_llm() -> BaseChatModel:
-    config_llm_key = deep_get(settings, "config.rag_response_service.document_grader_chat_llm")
+    config_llm_key = deep_get(settings, "config.rag_response.document_grader_chat_llm")
     llm = setup_llm_for_config_llm_key(config_llm_key)
-    logger.info(f"Setup done: config.rag_response_service.document_grader_chat_llm={llm}")
+    logger.info(f"Setup done: config.rag_response.document_grader_chat_llm={llm}")
     return llm
 
 
 def get_rewrite_question_chat_llm() -> BaseChatModel:
-    config_llm_key = deep_get(settings, "config.rag_response_service.rewrite_question_chat_llm")
+    config_llm_key = deep_get(settings, "config.rag_response.rewrite_question_chat_llm")
     llm = setup_llm_for_config_llm_key(config_llm_key)
-    logger.info(f"Setup done: config.rag_response_service.rewrite_question_chat_llm={llm}")
+    logger.info(f"Setup done: config.rag_response.rewrite_question_chat_llm={llm}")
     return llm
 
 #

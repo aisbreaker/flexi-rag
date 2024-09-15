@@ -14,8 +14,8 @@ def setup_logging():
     # Set different levels for different modules
     logging.getLogger('exported_api').setLevel(logging.DEBUG)
     logging.getLogger('factory').setLevel(logging.DEBUG)
-    logging.getLogger('rag_index_service').setLevel(logging.DEBUG)
-    logging.getLogger('rag_response_service').setLevel(logging.DEBUG)
+    logging.getLogger('rag_index').setLevel(logging.DEBUG)
+    logging.getLogger('rag_response').setLevel(logging.DEBUG)
     logging.getLogger('rag_workflow').setLevel(logging.DEBUG)
     logging.getLogger('service').setLevel(logging.DEBUG)
 

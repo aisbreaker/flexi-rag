@@ -33,5 +33,15 @@ def get_sql_database_connection() -> DBAPIConnection:
     module_and_connect_func = deep_get(config_sql_database, "connect")
     connect_func_kwargs     = deep_get(config_sql_database, "args")
 
+    # WORKAROUND:
+    # If sqlite3, then create the datbase directory if it does not exist
+    if module_and_connect_func == "sqlite3.connect":
+        import os
+        db_file = connect_func_kwargs.get("database")
+        if db_file:
+            db_dir = os.path.dirname(db_file)
+            if not os.path.exists(db_dir):
+                os.makedirs(db_dir)
+
     # Action: Create instance
     return call_function_or_constructor(module_and_connect_func, connect_func_kwargs, context_str_for_logging)

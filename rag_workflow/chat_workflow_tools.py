@@ -195,7 +195,7 @@ def identify_questions(messages: List[AnyMessage]) -> List[Question]:
 
     questions = list()
     enrich_all_user_messages_with_retrieved_documents = deep_get(
-        settings, "config.rag_response_service.enrich_all_user_messages_with_retrieved_documents")
+        settings, "config.rag_response.enrich_all_user_messages_with_retrieved_documents")
 
     # Pick one or all user messages and make them questions
     for i, message in enumerate(messages):

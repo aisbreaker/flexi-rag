@@ -2,6 +2,19 @@
 # configure the Retrieval Augmented Generation system here
 # (in this file are the default settings/default values)
 #
+vars:
+  #
+  # This section is used to define variables that can be used in the latter configuration
+  # with "${var.<var_name>}". It's only working for strings.
+  #
+  # Attention: The replacement is case sensitive.
+  #
+  # The values in this section may not contain any other variables.
+  #
+
+  # base directory for the data (databases, crawled/downloaded content, ...)
+  DATA_DIR: "./data"
+
 config:
   common:
     # LLMs used for the response generation and other tasks
@@ -21,6 +34,7 @@ config:
           temperature: 0.2
           streaming: False
           #api_key: "<YOUR_OPENAI_API_KEY>"
+          #api_key: "${env.OPENAI_API_KEY}"
           #base_url: "https://api.openai.com/v1"
           #base_url: "https://your.openai-compatible-api.example.com/v1"
 
@@ -63,7 +77,7 @@ config:
         # class=<module>.<chat-class>
         class: langchain_community.vectorstores.Chroma
         args:
-          persist_directory: "./chroma_db"
+          persist_directory: "${var.DATA_DIR}/vectorstore/rag.chroma.db"
           collection_name: "rag-chroma"
         embedding_function_arg_name: embedding_function
 
@@ -76,7 +90,7 @@ config:
         connect: sqlite3.connect
         args:
           # path to the SQLite database file
-          database: "./content.db"
+          database: "${var.DATA_DIR}/sql_database/rag.sqlite3.db"
           # other settings
           check_same_thread: false      
 
@@ -117,15 +131,15 @@ config:
           password: "db_password"
 
 
-  rag_index_service:
+  rag_loading:
     enabled: true
-  crawling:
-    enabled: true
-    depth: 3
-    max_pages: 1000
 
 
-  rag_response_service:
+  rag_indexing:
+    enabled: true
+
+
+  rag_response:
     # select the LLMs used for the response generation
     default_chat_llm: ChatOpenAI_default_llm
     default_chat_llm_with_streaming: ChatOpenAI_default_llm_with_streaming
