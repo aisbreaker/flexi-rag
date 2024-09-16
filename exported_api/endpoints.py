@@ -74,14 +74,14 @@ async def chat_completions(request: ChatRequest):
     """
 
     try:
-        # some "settings" in the response
+        # Some "settings" in the response
         id = "chatcmpl-flexirag-"+str(shortuuid.uuid()[:7])
         model = "flexirag-v1"
 
-        # generate response
+        # Generate response
         stream = request.stream
         if not stream:
-            # non-streaming mode
+            # Non-streaming mode
             async def generate():
                 workflow_result = await workflow.ainvoke({"messages": request.messages})  # Adjust according to your workflow execution method
                 response_data = {
@@ -100,7 +100,8 @@ async def chat_completions(request: ChatRequest):
             return await generate()
 
         else:
-            # steaming mode
+            # Steaming mode,
+            # Implemantation based on ideas of: https://www.digitalocean.com/community/tutorials/python-str-repr-functions
             inputs = {"messages": request.messages, "stream_generate_on_last_node": stream}
             async def generate():
                 async for workflow_event in workflow.astream_events(inputs, version="v2"):
@@ -142,7 +143,7 @@ async def chat_completions(request: ChatRequest):
                         logger.debug(f"  Yielding (plus non-logged newlines): {data_str}")
                         yield data_str_with_newlines
 
-                # generation finished
+                # Generation finished
                 stop_response_data = {
                     "id": id,
                     "object": "chat.completion.chunk",

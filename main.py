@@ -7,16 +7,6 @@ logger = logging.getLogger(__name__)
 # setup
 setup_logging()
 
-# test settings
-#llms=deep_get(settings, 'config.common.llms')
-#logger.info(f"config.common.llms={llms}")
-#oai=deep_get(llms, 'ChatOpenAI_default_llm')
-#logger.info(f"oai={oai}")
-#oai_module=deep_get(llms, 'ChatOpenAI_default_llm.module')
-#logger.info(f"oai_module={oai_module}")
-#invalid_module=deep_get(settings, 'config.common.llms.invalid.foo') #, None)
-#logger.info(f"invalid_module={invalid_module}")
-
 
 # standalone command execution
 
