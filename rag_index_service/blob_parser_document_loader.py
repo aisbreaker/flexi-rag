@@ -29,6 +29,8 @@ class BlobParserDocumentLoader(BaseLoader):
         self.blobLoader = blobLoader
         self.blobParser = blobParser
 
+    def __str__(self) -> str:
+        return f"BlobParserDocumentLoader(blobLoader: {self.blobLoader}, blobParser: {self.blobParser})"
 
     def lazy_load(self) -> Iterator[Document]:  # <-- Does not take any arguments
         """

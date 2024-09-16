@@ -20,6 +20,8 @@ class DefaultBlobParser(MimeTypeBasedParser):
         # Call the parent class constructor
         super().__init__(handlers=handlers, fallback_parser=fallback_parser)
 
+    def __str__(self) -> str:
+        return f"DefaultBlobParser()"
 
     def lazy_parse(self, blob: Blob) -> Iterator[Document]:
         """Load documents from a blob."""

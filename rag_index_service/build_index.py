@@ -166,18 +166,22 @@ def download_all_documents_and_put_them_into_queue():
     logger.info(f"== download_all_documents_and_put_them_into_queue(): Loading ...")
     document_loaders: List[BaseLoader] = get_document_loaders()
     for document_loader in document_loaders:
+        # one (document) loader from the config
         document_loader_info_str = str(document_loader)
         docs = document_loader.lazy_load()
-        put_all_downloaded_documents_into_queue(document_loader_info_str, docs)
+        put_downloaded_documents_into_queue(document_loader_info_str, docs)
     logger.info(f"== download_all_documents_and_put_them_into_queue(): Lazy loading + putting into queue ... {str_limit(docs, 1024)}")
+
+    # Add end signal to queue to finisj this loading round
+    downloadedDocumentsToProcessQueue.put(None)
+
     
-def put_all_downloaded_documents_into_queue(context_str: str, docs: Iterator[Document]):
+def put_downloaded_documents_into_queue(context_str: str, docs: Iterator[Document]):
     logger.info(f"== put_all_downloaded_document_into_queue() - START {context_str} ...")
     counter = 0
     for doc in docs:
         downloadedDocumentsToProcessQueue.put(doc)
         counter += 1
-    downloadedDocumentsToProcessQueue.put(None)  # end signal
     logger.info(f"== put_all_downloaded_document_into_queue() - END {context_str} ... after {counter} documents")
 
 

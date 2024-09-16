@@ -31,6 +31,8 @@ class WgetBlobLoader(BlobLoader):
             logger.info(f"Downloaded file: {blob}")
             yield blob
 
+    def __str__(self) -> str:
+        return f"WgetBlobLoader(url: {self.url})"
 
     @staticmethod
     def crawl_single_url_with_wget(url) -> Iterator[Blob]:
