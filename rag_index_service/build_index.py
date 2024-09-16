@@ -22,6 +22,7 @@ from chromadb import GetResult
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.vectorstores import VectorStore
 import shortuuid
+from service.configloader import deep_get, settings
 from factory.sql_database_factory import get_sql_database_connection
 from factory.vectorstore_factory import get_vectorstore
 from factory.llm_factory import get_default_embeddings
@@ -116,7 +117,8 @@ def start_indexing():
 
 
 def indexing_endless_loop_worker():
-    min_time_between_indexing_single_run = 60*60  # in seconds
+    load_every_seconds = deep_get(settings, "config.rag_loading.load_every_seconds")
+
     while True:
         # preparation
         starttime = time.time()
@@ -126,12 +128,12 @@ def indexing_endless_loop_worker():
 
         # finish this round
         now = time.time()
-        time_until_next_run = int(min_time_between_indexing_single_run - (now - starttime))
-        if time_until_next_run > 0:
-            logger.info(f"Sleeping for {time_until_next_run} seconds before starting next indexing round ...")
-            time.sleep(time_until_next_run)
+        seconds_until_next_run = int(load_every_seconds - (now - starttime))
+        if seconds_until_next_run > 0:
+            logger.info(f"Sleeping for {seconds_until_next_run} seconds before starting next indexing round ...")
+            time.sleep(seconds_until_next_run)
         else:
-            logger.info(f"Indexing round took longer than {min_time_between_indexing_single_run} seconds. Starting next indexing round immediately ...")
+            logger.info(f"Indexing round took longer than {load_every_seconds} seconds. Starting next indexing round immediately ...")
 
 
 

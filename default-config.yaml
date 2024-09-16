@@ -137,6 +137,9 @@ config:
   rag_loading:
     enabled: true
 
+    # minimim time between loading/indexing runs, in seconds
+    load_every_seconds: 3600        # 1 hour = 3600 seconds
+
     # The following loader types are supported:
     # - "BlobLoader" - to load content files
     #     The "class" is of type langchain_community.document_loaders.[blob_loaders.schema.]BlobLoader.
