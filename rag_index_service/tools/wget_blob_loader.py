@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class WgetBlobLoader(BlobLoader):
-    def __init__(self, url: str):
+    def __init__(self, url: str, **kwargs):
 
         self.url = url
 

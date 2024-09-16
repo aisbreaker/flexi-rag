@@ -3,8 +3,10 @@
 # partitially based on idea of
 #   https://stackoverflow.com/questions/52534211/python-type-hinting-with-db-api/77350678#77350678
 from typing import TYPE_CHECKING
+import mimetypes
 
-from factory.document_loader_factory import get_document_loader
+from factory.document_loader_factory import get_document_loaders
+from langchain_core.document_loaders import BaseLoader
 from rag_index_service.blob_parser_document_loader import BlobParserDocumentLoader
 from rag_index_service.tools.default_blob_parser import DefaultBlobParser
 from rag_index_service.tools.wget_blob_loader import WgetBlobLoader
@@ -71,10 +73,10 @@ DB_TABLE_document = """CREATE TABLE IF NOT EXISTS document (
                             id TEXT NOT NULL PRIMARY KEY,
                             source TEXT NOT NULL,
                             content_type TEXT NOT NULL,
-                            file_path TEXT NOT NULL,
-                            file_size INTEGER NOT NULL,
-                            file_sha256 TEXT NOT NULL,
-                            last_modified TEXT NOT NULL
+                            file_path TEXT,
+                            file_size INTEGER,
+                            file_sha256 TEXT,
+                            last_modified TEXT
                     )"""
 # a (document) part represents a part of a document after splitting, e.g., a page, a paragraph, a part of a page
 DB_TABLE_part = """CREATE TABLE IF NOT EXISTS part (
@@ -138,24 +140,13 @@ def indexing_single_run():
     global indexing_single_run_counter
     logger.info(f"===== indexing_single_run() START (#{indexing_single_run_counter}) =====")
 
-
-    # Docs to index
-    urls = [
-        "https://dance123.org/",
-        #"https://file-examples.com/storage/fe44eeb9cb66ab8ce934f14/2017/04/file_example_MP4_480_1_5MG.mp4",
-        #"https://lilianweng.github.io/posts/2023-06-23-agent/",
-        #"https://lilianweng.github.io/posts/2023-03-15-prompt-engineering/",
-        #"https://lilianweng.github.io/posts/2023-10-25-adv-attack-llm/",
-    ]
-
-
     """
     Here we decouple the crawling/loading and the processing/saving of the downloaded documents
     by using a queue and separated threads.
     """
 
-    # start the worker thread to crawl/load all documents from all URLs
-    threading.Thread(target=download_all_documents_and_put_them_into_queue, args=(urls,), daemon=False).start()
+    # start the worker thread to crawl/load all documents
+    threading.Thread(target=download_all_documents_and_put_them_into_queue, args=(), daemon=False).start()
 
     # process all documents from the queue
     process_all_documents_from_queue_worker()
@@ -171,20 +162,23 @@ def indexing_single_run():
     indexing_single_run_counter += 1
 
 
-def download_all_documents_and_put_them_into_queue(urls: Iterator[str]):
-    logger.info(f"== download_all_documents_and_put_them_into_queue(): Loading from ... {urls}")
-    docs = get_blob_document_loader(urls)
-    put_all_downloaded_documents_into_queue(docs)
+def download_all_documents_and_put_them_into_queue():
+    logger.info(f"== download_all_documents_and_put_them_into_queue(): Loading ...")
+    document_loaders: List[BaseLoader] = get_document_loaders()
+    for document_loader in document_loaders:
+        document_loader_info_str = str(document_loader)
+        docs = document_loader.lazy_load()
+        put_all_downloaded_documents_into_queue(document_loader_info_str, docs)
     logger.info(f"== download_all_documents_and_put_them_into_queue(): Lazy loading + putting into queue ... {str_limit(docs, 1024)}")
     
-def put_all_downloaded_documents_into_queue(docs: Iterator[Document]):
-    logger.info("== put_all_downloaded_document_into_queue() - START")
+def put_all_downloaded_documents_into_queue(context_str: str, docs: Iterator[Document]):
+    logger.info(f"== put_all_downloaded_document_into_queue() - START {context_str} ...")
     counter = 0
     for doc in docs:
         downloadedDocumentsToProcessQueue.put(doc)
         counter += 1
     downloadedDocumentsToProcessQueue.put(None)  # end signal
-    logger.info("== put_all_downloaded_document_into_queue() - END after {counter} documents")
+    logger.info(f"== put_all_downloaded_document_into_queue() - END {context_str} ... after {counter} documents")
 
 
 def process_all_documents_from_queue_worker():
@@ -202,11 +196,27 @@ def process_all_documents_from_queue_worker():
         else:
             # normal processing
             logger.info(f"Next doc from queue: Got it")
+            doc = _enrich_document(doc)
             process_single_document_and_store_results_in_databases(doc)
             downloadedDocumentsToProcessQueue.task_done()
 
     logger.info("== process_all_documents_in_queue_worker(): Split and save documents in databases - END")
 
+def _enrich_document(doc: Document) -> Document:
+    """
+    Enrich a document with metadata.
+    """
+    # add metadata
+    if "content_type" not in doc.metadata:
+
+        source = doc.metadata["source"]
+        (mimetype, encoding) = mimetypes.guess_type(source)
+        if mimetype is not None:
+            doc.metadata["content_type"] = mimetype
+        else:
+            doc.metadata["content_type"] = "unknown"
+
+    return doc
 
 #
 # processing multiple documents
@@ -216,7 +226,7 @@ def process_all_documents_from_queue_worker():
 # Attention: We need to iterate oder configured loaders instead of URLs
 # TODO!!!
 #
-def get_blob_document_loader(urls: Iterator[str]) -> Iterator[Document]:
+def run_all_document_loaders() -> Iterator[Document]:
     for url in urls:
         document_loader = get_document_loader(url)
         docs_of_single_url = document_loader.lazy_load()
@@ -298,11 +308,11 @@ def save_docs_in_sqldb(docs_list: Iterator[Document]) -> Iterator[Document]:
         #id =       str(shortuuid.uuid()[:7])
         logger.info(f"doc.metadata={doc.metadata}")
         source = doc.metadata['source']
-        content_type = doc.metadata['content_type']
-        file_path = doc.metadata['file_path']
-        file_size = doc.metadata['file_size']
-        file_sha256 = doc.metadata['file_sha256']
-        last_modified = doc.metadata['last_modified']
+        content_type = doc.metadata.get("content_type")
+        file_path = doc.metadata.get("file_path")
+        file_size = doc.metadata.get("file_size")
+        file_sha256 = doc.metadata.get("file_sha256")
+        last_modified = doc.metadata.get("last_modified")
 
         # Is the source already in the DB? Then delete related entries first
         # Attention: the order of deletion is important!
