@@ -1,53 +1,60 @@
-Flexi-RAG
-=========
+# Flexi-RAG
 
-Introduction
-------------
+## Introduction
 
-The goal of this open-source project is to provide a single Docker image that implements AI RAG (Retrieval-Augmented Generation) in a highly configurable way.
+[Flexi-RAG](https://github.com/aisbreaker/flexi-rag/) is an open-source project that provides a flexible, configurable AI solution for [Retrieval-Augmented Generation (RAG)](https://en.wikipedia.org/wiki/Retrieval-augmented_generation) within a single container. It crawls specified external document sources, such as websites or S3 folders, indexes them, and offers an OpenAI-compatible API endpoint for data search and retrieval. This makes it compatible with any OpenAI-based chat interface.
 
-Key facts:
-- Implemented in Python with LangChain/LangGraph.
-- Fully configurable through a single YAML file, with useful defaults.
-- Supports multiple alternative APIs (external services) for creating embeddings.
-- Supports multiple alternative APIs (external services) for LLMs (Language Model Models).
-- Supports multiple methods for retrieving data to populate the index database, including website crawling, Google Drive, S3, and local files within a specific folder.
-- The index database can be either memory+file-based or an external service accessible via an API.
-
-
-Status
-------
-This project is in a very early stage of development, not even ready for experimental use yet.
-
-The algorithme use here is based on the Langchain example "Self-RAG". 
-Self-RAG is a strategy for RAG that incorporates self-reflection / self-grading on retrieved documents and generations.
-
-Code example:
-- https://github.com/langchain-ai/langgraph/blob/main/examples/rag/langgraph_self_rag.ipynb
-- https://langchain-ai.github.io/langgraph/tutorials/rag/langgraph_self_rag/
+### Key Features:
+- **Single-container deployment**: Easily run in Docker or Kubernetes environments.
+- **Simple configuration**: Set up with just one YAML file, plus optional environment variables.
+- **Minimal setup**: Requires only an external LLM (e.g., OpenAI Chat API or equivalent).
+- **Customizable document sources**: Define crawling targets in the YAML file.
+- **Flexible integration**: Optionally configure LLMs, databases, and alternative RAG algorithms in the YAML file.
+- **OpenAI-compatible REST API**: Retrieval results are accessible via an exposed API endpoint.
+- **Included chat client**: A basic, OpenAI-compatible web chat client is provided for convenience.
 
 
+## Get Involved
+
+We welcome contributions from both developers and users! Whether you're looking to **enhance Flexi-RAG's capabilities**, integrate new features, improve documentation, **or simply share your experience and feedback**, your involvement is highly valued. As an open-source project, Flexi-RAG thrives on community collaboration. Developers can contribute by submitting pull requests, reporting issues, or suggesting new ideas. Users are encouraged to share use cases, request features, and help improve the project by providing insights from real-world applications. Together, we can make Flexi-RAG even more powerful and versatile. [Contact](https://aisbreaker.org/contact) us!
 
 
-TODOs
------
-... for now:
-* improve docs and README
-* build Docker image
-* test Docker image
+## Status
+
+This project is currently in the early stages of development and is intended for development and experimental use only. At this time, no public Docker images are available. To get started, you'll need to clone the source code from the repository and build the container locally.
 
 
-MAYBE LATER
------------
-TODOs for later:
-* build-Index: with a configurable workflow?
-* factors out generic endspoints-logic to provide OpenAI-compatible API
+## Technical Details
+
+Key technical aspects of the project:
+- **Built with Python**: Utilizes LangChain and LangGraph frameworks for seamless integration and customization.
+- **Flexible configuration**: The entire system is configurable via a single YAML file with sensible defaults, allowing for easy setup and customization.
+- **Customizable algorithms**: Indexing and retrieval algorithms offer significant flexibility, allowing for fine-tuned configurations.
+- **Embedding model support**: Any external embedding model supported by LangChain can be used, including all OpenAI API-compatible embedding services.
+- **LLM compatibility**: You can use any external chat LLM supported by LangChain, including all OpenAI API-compatible chat completion services.
+- **Vector store integration**: Supports all vector store databases available in LangChain, such as internal ChromaDB (in-memory or file-based) and external vector databases.
+- **SQL database support**: Compatible with any SQL database that follows the Python DB-API 2.0 standard, including internal SQLite (in-memory or file-based) and external SQL databases.
+- **Diverse document sources**: Supports multiple methods for document retrieval to populate the index, such as website crawling, Google Drive, S3, and local file directories.
+
+By default, the project employs a simplified version of the LangChain "Self-RAG" approach for indexing and retrieval ([LangGraph Self-RAG Code](https://github.com/langchain-ai/langgraph/blob/main/examples/rag/langgraph_self_rag.ipynb), [LangGraph Self-RAG Docs](https://langchain-ai.github.io/langgraph/tutorials/rag/langgraph_self_rag/)).
 
 
+## TODOs
+
+Current tasks:
+- Build the Docker image for deployment
+- Test and verify the functionality of the Docker image
+- Further refine and stabilize core features
 
 
-Development / Usage
--------------------
+## Future Enhancements
+
+Potential future improvements:
+- Implement a customizable workflow for building the index
+- Factor out generic endspoints-logic that provides OpenAI-compatible API for a LangGraph workflow
+
+
+## Development / Usage
 
 Python run:
 
